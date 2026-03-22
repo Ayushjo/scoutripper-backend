@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Location {
+  id              BigInt               @id @default(autoincrement())
+  name            String
+  slug            String               @unique
+  content         Json?
+  imageId         String?              @map("image_id")
+  mapLat          Float?               @map("map_lat")
+  mapLng          Float?               @map("map_lng")
+  mapZoom         BigInt?              @map("map_zoom")
+  status          String?              @default("draft")
+  generalInfo     Json?                @map("general_info")
+  gallery         Json?
+  bannerImage     String?              @map("banner_image")
+  parentId        BigInt?              @map("parent_id")
+  path            Unsupported("ltree")
+  type            String?
+  createdAt       DateTime?            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime?            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  experiences     experiences[]
+  locations       Location?            @relation("locationsTolocations", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_locations Location[]           @relation("locationsTolocations")
+  treks           Trek[]
+
+  @@index([parentId], map: "idx_locations_parent")
+  @@index([path], map: "idx_locations_path", type: Gist)
+  @@index([slug], map: "idx_locations_slug")
+  @@index([status], map: "idx_locations_status")
+  @@map("locations")
+}
+
+model DestinationCategory {
+  id        BigInt    @id @default(autoincrement())
+  name      String
+  slug      String    @unique
+  status    String?   @default("publish")
+  catIcon   String?   @map("cat_icon")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  treks     Trek[]
+
+  @@map("destination_category")
+}
+
+model Trek {
+  id              BigInt               @id @default(autoincrement())
+  title           String
+  slug            String               @unique
+  isFeatured      String?              @default("no") @map("is_featured")
+  status          String?              @default("draft")
+  categoryId      BigInt?              @map("category_id")
+  locationId      BigInt?              @map("location_id")
+  address         String?
+  price           Float?               @db.Real
+  salePrice       Float?               @map("sale_price") @db.Real
+  bannerImage     String?              @map("banner_image")
+  gallery         Json?
+  featureImages   Json?                @map("feature_images")
+  overview        Json?
+  howToReach      Json?                @map("how_to_reach")
+  bestTimeToVisit Json?                @map("best_time_to_visit")
+  faqs            Json?
+  itinerary       Json?
+  mapLat          Float?               @map("map_lat")
+  mapLng          Float?               @map("map_lng")
+  mapZoom         BigInt?              @map("map_zoom")
+  duration        BigInt?
+  totalDistance   String?              @map("total_distance")
+  altitude        String?
+  suitableAge     String?              @map("suitable_age")
+  video           String?
+  reviewScore     String?              @map("review_score")
+  authorId        BigInt?              @map("author_id")
+  createdAt       DateTime?            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime?            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  inclusions      Json?
+  attributes      TrekAttribute[]
+  category        DestinationCategory? @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  location        Location?            @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([categoryId], map: "idx_treks_category")
+  @@index([isFeatured], map: "idx_treks_featured")
+  @@index([locationId], map: "idx_treks_location")
+  @@index([slug], map: "idx_treks_slug")
+  @@index([status], map: "idx_treks_status")
+  @@map("treks")
+}
+
+model AttributeCategory {
+  id         BigInt      @id @default(autoincrement())
+  name       String
+  slug       String      @unique
+  service    String?
+  status     String?     @default("publish")
+  createdAt  DateTime?   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime?   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt  DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  attributes Attribute[]
+
+  @@index([service], map: "idx_attributes_category_service")
+  @@index([status], map: "idx_attributes_category_status")
+  @@map("attributes_category")
+}
+
+model Attribute {
+  id                    BigInt                  @id @default(autoincrement())
+  name                  String
+  slug                  String                  @unique
+  attrId                BigInt?                 @map("attr_id")
+  imageId               String?                 @map("image_id")
+  icon                  String?
+  status                String?                 @default("publish")
+  createdAt             DateTime?               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime?               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt             DateTime?               @map("deleted_at") @db.Timestamptz(6)
+  category              AttributeCategory?      @relation(fields: [attrId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  experience_attributes experience_attributes[]
+  treks                 TrekAttribute[]
+
+  @@index([attrId], map: "idx_attributes_attr_id")
+  @@index([status], map: "idx_attributes_status")
+  @@map("attributes")
+}
+
+model TrekAttribute {
+  trekId       BigInt    @map("trek_id")
+  attributesId BigInt    @map("attributes_id")
+  attribute    Attribute @relation(fields: [attributesId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  trek         Trek      @relation(fields: [trekId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([trekId, attributesId])
+  @@index([attributesId], map: "idx_trek_attributes_attribute")
+  @@index([trekId], map: "idx_trek_attributes_trek")
+  @@map("trek_attributes")
+}
+
+model bookings {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  item_name        String?
+  item_type        String?
+  item_id          BigInt?
+  user_name        String?
+  user_email       String?
+  special_request  String?
+  reciept          String?
+  order_id         String?
+  payment_id       String?
+  status           String?
+  amount_paid      Float?    @db.Real
+  scheduled_on     DateTime? @db.Timestamptz(6)
+  adult_count      BigInt?
+  children_count   BigInt?
+  item_price_total BigInt?
+}
+
+model experience_attributes {
+  experience_id BigInt
+  attributes_id BigInt
+  attributes    Attribute   @relation(fields: [attributes_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  experiences   experiences @relation(fields: [experience_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([experience_id, attributes_id])
+  @@index([attributes_id], map: "idx_experience_attributes_attribute")
+  @@index([experience_id], map: "idx_experience_attributes_experience")
+}
+
+model experiences {
+  id                    BigInt                  @id @default(autoincrement())
+  title                 String
+  slug                  String                  @unique
+  content               String?
+  location_id           BigInt?
+  address               String?
+  map_lat               String?
+  map_lng               String?
+  map_zoom              BigInt?
+  is_featured           String?
+  video                 String?
+  faqs                  Json?
+  ticket_types          Json?
+  duration              BigInt?
+  start_time            String?
+  price                 Float?                  @db.Real
+  sale_price            Float?                  @db.Real
+  is_instant            String?
+  enable_extra_price    String?
+  extra_price           Json?
+  review_score          String?
+  ical_import_url       String?
+  status                String?
+  author_id             BigInt?
+  enable_service_fee    String?
+  service_fee           String?
+  surrounding           String?
+  end_time              String?
+  duration_unit         String?
+  overview              Json?
+  banner_image          String?
+  feature_images        Json?
+  gallery               Json?
+  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  deleted_at            DateTime?               @db.Timestamptz(6)
+  experience_attributes experience_attributes[]
+  locations             Location?               @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([location_id], map: "idx_experiences_location")
+  @@index([slug], map: "idx_experiences_slug")
+  @@index([status], map: "idx_experiences_status")
+}
+
+model profiles {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bio            String?
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  address_line_1 String?
+  address_line_2 String?
+  state          String?
+  zip_code       String?
+  phone_number   String?
+}
+
+model wishlist {
+  id         BigInt    @id @default(autoincrement())
+  user_id    String?   @db.Uuid
+  item_type  String?
+  item_id    BigInt?
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  item_slug  String?
+
+  @@index([user_id], map: "idx_wishlist_user")
+}
