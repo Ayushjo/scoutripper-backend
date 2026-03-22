@@ -186,7 +186,7 @@ export const getTrekBreadcrumb = async (slug: string) => {
 
   return {
     trek: { title: trek.title, slug: trek.slug },
-    breadcrumb: breadcrumb.map((b) => ({
+    breadcrumb: breadcrumb.map((b:any) => ({
       id: b.id.toString(),
       name: b.name,
       slug: b.slug,
