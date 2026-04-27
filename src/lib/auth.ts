@@ -21,7 +21,7 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: false,
     sendResetPassword: async ({ user, url }) => {
       await transporter.sendMail({
         from: process.env.EMAIL_FROM,
@@ -37,22 +37,22 @@ export const auth = betterAuth({
     },
   },
 
-  emailVerification: {
-    sendVerificationEmail: async ({ user, url }) => {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: user.email,
-        subject: "Verify your ScoutRipper account",
-        html: `
-          <h2>Welcome to ScoutRipper!</h2>
-          <p>Click below to verify your email:</p>
-          <a href="${url}">Verify Email</a>
-          <p>Expires in 24 hours.</p>
-        `,
-      });
-    },
-    autoSignInAfterVerification: true,
-  },
+//   emailVerification: {
+//     sendVerificationEmail: async ({ user, url }) => {
+//       await transporter.sendMail({
+//         from: process.env.EMAIL_FROM,
+//         to: user.email,
+//         subject: "Verify your ScoutRipper account",
+//         html: `
+//           <h2>Welcome to ScoutRipper!</h2>
+//           <p>Click below to verify your email:</p>
+//           <a href="${url}">Verify Email</a>
+//           <p>Expires in 24 hours.</p>
+//         `,
+//       });
+//     },
+//     autoSignInAfterVerification: true,
+//   },
 
   socialProviders: {
     google: {

@@ -86,6 +86,7 @@ model Trek {
   deletedAt       DateTime?            @map("deleted_at") @db.Timestamptz(6)
   inclusions      Json?
   attributes      TrekAttribute[]
+  trek_listings   trek_listings[]
   category        DestinationCategory? @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   location        Location?            @relation(fields: [locationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -213,6 +214,7 @@ model experiences {
   created_at            DateTime?               @default(now()) @db.Timestamptz(6)
   updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
   deleted_at            DateTime?               @db.Timestamptz(6)
+  inclusions            Json?
   experience_attributes experience_attributes[]
   locations             Location?               @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -299,4 +301,113 @@ model verification {
   expiresAt  DateTime @db.Timestamp(6)
   createdAt  DateTime @default(now()) @db.Timestamp(6)
   updatedAt  DateTime @default(now()) @db.Timestamp(6)
+}
+
+model slugs {
+  id         BigInt    @id @default(autoincrement())
+  slug       String    @unique
+  type       String
+  entity_id  BigInt
+  name       String
+  is_active  Boolean?  @default(true)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([is_active], map: "idx_slugs_active")
+  @@index([slug], map: "idx_slugs_slug")
+  @@index([type, entity_id], map: "idx_slugs_type")
+}
+
+model trek_leaders {
+  id               BigInt          @id @default(autoincrement())
+  vendor_id        BigInt?
+  name             String
+  image            String?
+  experience_years Int?
+  certifications   Json?
+  bio              String?
+  rating           Float?          @db.Real
+  review_count     Int?            @default(0)
+  status           String?         @default("active")
+  created_at       DateTime?       @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?       @default(now()) @db.Timestamptz(6)
+  vendors          vendors?        @relation(fields: [vendor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  trek_listings    trek_listings[]
+
+  @@index([status], map: "idx_trek_leaders_status")
+  @@index([vendor_id], map: "idx_trek_leaders_vendor")
+}
+
+model trek_listings {
+  id                  BigInt        @id @default(autoincrement())
+  trek_id             BigInt?
+  vendor_id           BigInt?
+  trek_leader_id      BigInt?
+  title               String
+  tags                Json?
+  route_name          String?
+  price               Float?        @db.Real
+  sale_price          Float?        @db.Real
+  duration_days       Int?
+  distance_km         String?
+  elevation_gain      String?
+  ascent_time         String?
+  descent_time        String?
+  difficulty          String?
+  meeting_point       String?
+  intro_text          String?
+  itinerary           Json?
+  inclusions          Json?
+  exclusions          Json?
+  highlights          Json?
+  cancellation_policy String?
+  is_popular          Boolean?      @default(false)
+  status              String?       @default("active")
+  created_at          DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?     @default(now()) @db.Timestamptz(6)
+  treks               Trek?         @relation(fields: [trek_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  trek_leaders        trek_leaders? @relation(fields: [trek_leader_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendors             vendors?      @relation(fields: [vendor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  trek_slots          trek_slots[]
+
+  @@index([trek_leader_id], map: "idx_trek_listings_leader")
+  @@index([is_popular], map: "idx_trek_listings_popular")
+  @@index([status], map: "idx_trek_listings_status")
+  @@index([trek_id], map: "idx_trek_listings_trek")
+  @@index([vendor_id], map: "idx_trek_listings_vendor")
+}
+
+model trek_slots {
+  id              BigInt         @id @default(autoincrement())
+  listing_id      BigInt?
+  start_date      DateTime       @db.Date
+  end_date        DateTime       @db.Date
+  total_seats     Int
+  available_seats Int
+  booked_seats    Int?           @default(0)
+  status          String?        @default("open")
+  created_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  trek_listings   trek_listings? @relation(fields: [listing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([listing_id], map: "idx_trek_slots_listing")
+  @@index([start_date], map: "idx_trek_slots_start_date")
+  @@index([status], map: "idx_trek_slots_status")
+}
+
+model vendors {
+  id            BigInt          @id @default(autoincrement())
+  name          String
+  email         String?         @unique
+  phone         String?
+  logo          String?
+  description   String?
+  is_verified   Boolean?        @default(false)
+  status        String?         @default("active")
+  created_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  trek_leaders  trek_leaders[]
+  trek_listings trek_listings[]
+
+  @@index([email], map: "idx_vendors_email")
+  @@index([status], map: "idx_vendors_status")
 }

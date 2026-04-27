@@ -1,5 +1,6 @@
 import prisma from "../utils/db";
 import { TrekFilters } from "../types/trek.types";
+import { ListingSummary, TrekLeaderSummary, NextSlot } from "../types/listing.types";
 
 
 interface TrekRaw {
@@ -105,6 +106,98 @@ export const getAllTreks = async (filters: TrekFilters) => {
 };
 
 
+interface ListingStatsRaw {
+  min_price: number | null;
+  listing_count: number;
+  leader_count: number;
+}
+
+interface ExpeditionLeaderRaw {
+  id: bigint;
+  name: string;
+  image: string | null;
+  rating: number | null;
+  certifications: unknown;
+}
+
+interface ListingRaw {
+  id: bigint;
+  title: string;
+  route_name: string | null;
+  tags: unknown;
+  price: number | null;
+  sale_price: number | null;
+  duration_days: number | null;
+  difficulty: string | null;
+  meeting_point: string | null;
+  cancellation_policy: string | null;
+  is_popular: boolean;
+  vendor_id: bigint;
+  vendor_name: string;
+  vendor_logo: string | null;
+  vendor_is_verified: boolean;
+  leader_id: bigint | null;
+  leader_name: string | null;
+  leader_image: string | null;
+  leader_rating: number | null;
+  leader_experience_years: number | null;
+  leader_certifications: unknown;
+  slot_id: bigint | null;
+  slot_start_date: Date | null;
+  slot_end_date: Date | null;
+  slot_available_seats: number | null;
+  slot_status: string | null;
+}
+
+function formatDate(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
+function serializeListingRaw(r: ListingRaw): ListingSummary {
+  const leader: TrekLeaderSummary | null = r.leader_id
+    ? {
+        id: r.leader_id.toString(),
+        name: r.leader_name!,
+        image: r.leader_image,
+        rating: r.leader_rating,
+        experience_years: r.leader_experience_years,
+        certifications: r.leader_certifications,
+      }
+    : null;
+
+  const next_slot: NextSlot | null = r.slot_id
+    ? {
+        id: r.slot_id.toString(),
+        start_date: formatDate(r.slot_start_date!),
+        end_date: formatDate(r.slot_end_date!),
+        available_seats: r.slot_available_seats!,
+        status: r.slot_status!,
+      }
+    : null;
+
+  return {
+    id: r.id.toString(),
+    title: r.title,
+    route_name: r.route_name,
+    tags: r.tags,
+    price: r.price,
+    sale_price: r.sale_price,
+    duration_days: r.duration_days,
+    difficulty: r.difficulty,
+    meeting_point: r.meeting_point,
+    cancellation_policy: r.cancellation_policy,
+    is_popular: r.is_popular,
+    vendor: {
+      id: r.vendor_id.toString(),
+      name: r.vendor_name,
+      logo: r.vendor_logo,
+      is_verified: r.vendor_is_verified,
+    },
+    trek_leader: leader,
+    next_slot,
+  };
+}
+
 export const getTrekBySlug = async (slug: string) => {
   const trek = await prisma.trek.findUnique({
     where: { slug },
@@ -147,7 +240,97 @@ export const getTrekBySlug = async (slug: string) => {
     },
   });
 
-  return trek;
+  if (!trek) return null;
+
+  const [statsResult, expeditionTeamRaw] = await Promise.all([
+    prisma.$queryRaw<ListingStatsRaw[]>`
+      SELECT
+        MIN(price)::float8 as min_price,
+        COUNT(*)::int4 as listing_count,
+        COUNT(DISTINCT trek_leader_id)::int4 as leader_count
+      FROM trek_listings
+      WHERE trek_id = ${trek.id} AND status = 'active'
+    `,
+    prisma.$queryRaw<ExpeditionLeaderRaw[]>`
+      SELECT DISTINCT tl.id, tl.name, tl.image, tl.rating, tl.certifications
+      FROM trek_leaders tl
+      JOIN trek_listings tll ON tll.trek_leader_id = tl.id
+      WHERE tll.trek_id = ${trek.id} AND tll.status = 'active'
+      ORDER BY tl.id ASC
+      LIMIT 5
+    `,
+  ]);
+
+  const stats = statsResult[0];
+
+  return {
+    ...trek,
+    min_price: stats?.min_price ?? null,
+    listing_count: stats?.listing_count ?? 0,
+    leader_count: stats?.leader_count ?? 0,
+    expedition_team: expeditionTeamRaw.map((l) => ({
+      id: l.id.toString(),
+      name: l.name,
+      image: l.image,
+      rating: l.rating,
+      certifications: l.certifications,
+    })),
+  };
+};
+
+export const getTrekListings = async (slug: string): Promise<ListingSummary[] | null> => {
+  const trek = await prisma.trek.findUnique({
+    where: { slug },
+    select: { id: true },
+  });
+
+  if (!trek) return null;
+
+  const listings = await prisma.$queryRaw<ListingRaw[]>`
+    SELECT
+      tl.id,
+      tl.title,
+      tl.route_name,
+      tl.tags,
+      tl.price,
+      tl.sale_price,
+      tl.duration_days,
+      tl.difficulty,
+      tl.meeting_point,
+      tl.cancellation_policy,
+      tl.is_popular,
+      v.id    AS vendor_id,
+      v.name  AS vendor_name,
+      v.logo  AS vendor_logo,
+      v.is_verified AS vendor_is_verified,
+      ldr.id              AS leader_id,
+      ldr.name            AS leader_name,
+      ldr.image           AS leader_image,
+      ldr.rating          AS leader_rating,
+      ldr.experience_years AS leader_experience_years,
+      ldr.certifications  AS leader_certifications,
+      ns.id               AS slot_id,
+      ns.start_date       AS slot_start_date,
+      ns.end_date         AS slot_end_date,
+      ns.available_seats  AS slot_available_seats,
+      ns.status           AS slot_status
+    FROM trek_listings tl
+    JOIN vendors v ON v.id = tl.vendor_id
+    LEFT JOIN trek_leaders ldr ON ldr.id = tl.trek_leader_id
+    LEFT JOIN LATERAL (
+      SELECT id, start_date, end_date, available_seats, status
+      FROM trek_slots
+      WHERE listing_id = tl.id
+        AND status = 'open'
+        AND start_date >= CURRENT_DATE
+      ORDER BY start_date ASC
+      LIMIT 1
+    ) ns ON true
+    WHERE tl.trek_id = ${trek.id} AND tl.status = 'active'
+    ORDER BY tl.is_popular DESC, tl.id ASC
+  `;
+
+  return listings.map(serializeListingRaw);
 };
 
 
