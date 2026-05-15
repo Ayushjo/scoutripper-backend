@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import * as TrekService from "../services/trek.service";
-import { ApiResponse, PaginationMeta } from "../types/trek.types";
+import { ApiResponse, PaginationMeta, TrekFilters } from "../types/trek.types";
 
 
 export const getAllTreks = async (
@@ -34,6 +34,19 @@ export const getAllTreks = async (
         ? Number(req.query.duration)
         : undefined;
 
+    const difficulty =
+      typeof req.query.difficulty === "string" ? req.query.difficulty : undefined;
+    const location =
+      typeof req.query.location === "string" ? req.query.location : undefined;
+    const category =
+      typeof req.query.category === "string" ? req.query.category : undefined;
+    const season =
+      typeof req.query.season === "string" ? req.query.season : undefined;
+    const sort =
+      typeof req.query.sort === "string"
+        ? (req.query.sort as TrekFilters["sort"])
+        : undefined;
+
     const { treks, total } = await TrekService.getAllTreks({
       status,
       categoryId,
@@ -41,6 +54,11 @@ export const getAllTreks = async (
       minPrice,
       maxPrice,
       duration,
+      difficulty,
+      location,
+      category,
+      season,
+      sort,
       page,
       limit,
     });

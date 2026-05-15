@@ -6,6 +6,11 @@ export interface TrekFilters {
   minPrice?: number;
   maxPrice?: number;
   duration?: number;
+  difficulty?: string;
+  location?: string;
+  category?: string;
+  season?: string;
+  sort?: "price_asc" | "price_desc" | "duration_asc" | "newest";
   page?: number;
   limit?: number;
 }

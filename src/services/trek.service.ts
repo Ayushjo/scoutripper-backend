@@ -39,6 +39,51 @@ function serializeTrekRaw(r: TrekRaw) {
 }
 
 
+interface TrekListRaw {
+  id: bigint;
+  title: string;
+  slug: string;
+  banner_image: string | null;
+  price: number | null;
+  sale_price: number | null;
+  duration: bigint | null;
+  altitude: string | null;
+  total_distance: string | null;
+  is_featured: string | null;
+  status: string | null;
+  review_score: string | null;
+  created_at: Date | null;
+  location_id: bigint | null;
+  location_name: string | null;
+  location_slug: string | null;
+  category_id: bigint | null;
+  category_name: string | null;
+  category_slug: string | null;
+}
+
+function serializeTrekList(r: TrekListRaw) {
+  return {
+    id: r.id.toString(),
+    title: r.title,
+    slug: r.slug,
+    bannerImage: r.banner_image,
+    price: r.price,
+    salePrice: r.sale_price,
+    duration: r.duration?.toString() ?? null,
+    altitude: r.altitude,
+    totalDistance: r.total_distance,
+    isFeatured: r.is_featured,
+    status: r.status,
+    reviewScore: r.review_score,
+    location: r.location_id
+      ? { id: r.location_id.toString(), name: r.location_name, slug: r.location_slug }
+      : null,
+    category: r.category_id
+      ? { id: r.category_id.toString(), name: r.category_name, slug: r.category_slug }
+      : null,
+  };
+}
+
 export const getAllTreks = async (filters: TrekFilters) => {
   const {
     status = "publish",
@@ -47,62 +92,99 @@ export const getAllTreks = async (filters: TrekFilters) => {
     minPrice,
     maxPrice,
     duration,
+    difficulty,
+    location,
+    category,
+    season,
+    sort = "newest",
     page = 1,
     limit = 10,
   } = filters;
 
   const skip = (page - 1) * limit;
+  const params: (string | number | bigint)[] = [];
+  let n = 1;
 
-  const where: Record<string, unknown> = {
-    deletedAt: null,
-    status,
+  const push = (v: string | number | bigint): string => {
+    params.push(v);
+    return `$${n++}`;
   };
 
-  if (categoryId) where.categoryId = BigInt(categoryId);
-  if (isFeatured) where.isFeatured = isFeatured;
-  if (minPrice !== undefined) where.price = { gte: minPrice };
-  if (maxPrice !== undefined) where.price = { lte: maxPrice };
-  if (duration) where.duration = BigInt(duration);
+  const conds: string[] = [
+    "t.deleted_at IS NULL",
+    `t.status = ${push(status)}`,
+  ];
 
-  const [treks, total] = await Promise.all([
-    prisma.trek.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        bannerImage: true,
-        price: true,
-        salePrice: true,
-        duration: true,
-        altitude: true,
-        totalDistance: true,
-        isFeatured: true,
-        status: true,
-        reviewScore: true,
-        location: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    }),
-    prisma.trek.count({ where }),
+  const joins: string[] = [
+    "LEFT JOIN locations l ON l.id = t.location_id",
+    "LEFT JOIN destination_category dc ON dc.id = t.category_id",
+  ];
+
+  if (categoryId !== undefined) conds.push(`t.category_id = ${push(BigInt(categoryId))}`);
+  if (isFeatured !== undefined) conds.push(`t.is_featured = ${push(isFeatured)}`);
+  if (minPrice !== undefined) conds.push(`t.price >= ${push(minPrice)}`);
+  if (maxPrice !== undefined) conds.push(`t.price <= ${push(maxPrice)}`);
+  if (duration !== undefined) conds.push(`t.duration = ${push(BigInt(duration * 24))}`);
+
+  if (location) {
+    conds.push(
+      `l.path <@ (SELECT path FROM locations WHERE slug = ${push(location)} AND deleted_at IS NULL LIMIT 1)`,
+    );
+  }
+
+  for (const [alias, val] of [
+    ["diff", difficulty],
+    ["cat", category],
+    ["sea", season],
+  ] as [string, string | undefined][]) {
+    if (val) {
+      joins.push(
+        `JOIN trek_attributes ta${alias} ON ta${alias}.trek_id = t.id`,
+        `JOIN attributes a${alias} ON a${alias}.id = ta${alias}.attributes_id AND a${alias}.slug = ${push(val)}`,
+      );
+    }
+  }
+
+  const orderByMap: Record<string, string> = {
+    price_asc: "t.price ASC NULLS LAST",
+    price_desc: "t.price DESC NULLS LAST",
+    duration_asc: "t.duration ASC NULLS LAST",
+    newest: "t.created_at DESC",
+  };
+  const orderBy = orderByMap[sort] ?? "t.created_at DESC";
+
+  const joinStr = joins.join("\n");
+  const whereStr = `WHERE ${conds.join(" AND ")}`;
+
+  const dataSql = `
+    SELECT DISTINCT
+      t.id, t.title, t.slug, t.banner_image, t.price, t.sale_price,
+      t.duration, t.altitude, t.total_distance, t.is_featured,
+      t.status, t.review_score, t.created_at,
+      l.id   AS location_id, l.name AS location_name, l.slug AS location_slug,
+      dc.id  AS category_id, dc.name AS category_name, dc.slug AS category_slug
+    FROM treks t
+    ${joinStr}
+    ${whereStr}
+    ORDER BY ${orderBy}
+    LIMIT ${push(limit)} OFFSET ${push(skip)}
+  `;
+
+  const countSql = `
+    SELECT COUNT(DISTINCT t.id)::bigint AS count
+    FROM treks t
+    ${joinStr}
+    ${whereStr}
+  `;
+
+  const baseParams = params.slice(0, -2);
+
+  const [treks, countResult] = await Promise.all([
+    prisma.$queryRawUnsafe<TrekListRaw[]>(dataSql, ...params),
+    prisma.$queryRawUnsafe<CountRaw[]>(countSql, ...baseParams),
   ]);
 
-  return { treks, total };
+  return { treks: treks.map(serializeTrekList), total: Number(countResult[0]?.count ?? 0) };
 };
 
 

@@ -3,6 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import trekRoutes from "./routes/trek.routes";
 import listingRoutes from "./routes/listing.routes";
+import bookingRoutes from "./routes/booking.routes";
+import wishlistRoutes from "./routes/wishlist.routes";
+import locationRoutes from "./routes/location.routes";
+import categoryRoutes from "./routes/category.routes";
 import { toNodeHandler } from "better-auth/node";
 import { auth, Auth } from "./lib/auth";
 dotenv.config();
@@ -19,6 +23,10 @@ app.use(express.json());
 
 app.use("/api/v1/treks", trekRoutes);
 app.use("/api/v1/listings", listingRoutes);
+app.use("/api/v1/bookings", bookingRoutes);
+app.use("/api/v1/wishlist", wishlistRoutes);
+app.use("/api/v1/locations", locationRoutes);
+app.use("/api/v1/categories", categoryRoutes);
 
 
 app.get("/health", (req, res) => {
