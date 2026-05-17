@@ -1,5 +1,6 @@
 import prisma from "../utils/db";
 import { ListingDetail, SlotDetail } from "../types/listing.types";
+import { buildImageUrl } from "../utils/image";
 
 function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -116,7 +117,7 @@ export const getListingById = async (id: bigint): Promise<ListingDetail | null> 
           id: listing.treks.id.toString(),
           title: listing.treks.title,
           slug: listing.treks.slug,
-          banner_image: listing.treks.bannerImage,
+          banner_image: buildImageUrl(listing.treks.bannerImage),
         }
       : null,
     slots,

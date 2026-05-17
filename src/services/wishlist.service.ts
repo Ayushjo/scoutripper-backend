@@ -1,4 +1,5 @@
 import prisma from "../utils/db";
+import { buildImageUrl } from "../utils/image";
 
 interface WishlistTrekRaw {
   id: bigint;
@@ -86,7 +87,7 @@ export const getWishlist = async (userId: string) => {
       id: itemData.id.toString(),
       title: itemData.title,
       slug: itemData.slug,
-      banner_image: itemData.banner_image,
+      banner_image: buildImageUrl(itemData.banner_image),
       price: itemData.price,
       sale_price: itemData.sale_price,
       duration: itemData.duration?.toString() ?? null,

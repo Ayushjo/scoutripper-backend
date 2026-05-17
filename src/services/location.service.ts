@@ -1,4 +1,5 @@
 import prisma from "../utils/db";
+import { buildImageUrl } from "../utils/image";
 
 interface LocationListRaw {
   id: bigint;
@@ -40,6 +41,11 @@ interface ChildLocationRaw {
   trek_count: number;
 }
 
+function buildImageGallery(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((item) => (typeof item === "string" ? buildImageUrl(item) : item));
+}
+
 export const getLocations = async () => {
   const rows = await prisma.$queryRaw<LocationListRaw[]>`
     SELECT
@@ -66,7 +72,7 @@ export const getLocations = async () => {
     id: r.id.toString(),
     name: r.name,
     slug: r.slug,
-    banner_image: r.banner_image,
+    banner_image: buildImageUrl(r.banner_image),
     type: r.type,
     trek_count: r.trek_count,
   }));
@@ -128,12 +134,12 @@ export const getLocationBySlug = async (slug: string) => {
     name: loc.name,
     slug: loc.slug,
     content: loc.content,
-    image_id: loc.image_id,
+    image_id: buildImageUrl(loc.image_id),
     map_lat: loc.map_lat,
     map_lng: loc.map_lng,
     general_info: loc.general_info,
-    gallery: loc.gallery,
-    banner_image: loc.banner_image,
+    gallery: buildImageGallery(loc.gallery),
+    banner_image: buildImageUrl(loc.banner_image),
     type: loc.type,
     trek_count: trekCountRows[0]?.count ?? 0,
     breadcrumb: breadcrumb.map((b) => ({
@@ -146,7 +152,7 @@ export const getLocationBySlug = async (slug: string) => {
       id: c.id.toString(),
       name: c.name,
       slug: c.slug,
-      banner_image: c.banner_image,
+      banner_image: buildImageUrl(c.banner_image),
       type: c.type,
       trek_count: c.trek_count,
     })),

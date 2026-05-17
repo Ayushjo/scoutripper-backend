@@ -1,6 +1,7 @@
 import prisma from "../utils/db";
 import { TrekFilters } from "../types/trek.types";
 import { ListingSummary, TrekLeaderSummary, NextSlot } from "../types/listing.types";
+import { buildImageUrl } from "../utils/image";
 
 
 interface TrekRaw {
@@ -26,7 +27,7 @@ function serializeTrekRaw(r: TrekRaw) {
     id: r.id.toString(),
     title: r.title,
     slug: r.slug,
-    bannerImage: r.banner_image,
+    bannerImage: buildImageUrl(r.banner_image),
     price: r.price,
     salePrice: r.sale_price,
     duration: r.duration?.toString() ?? null,
@@ -66,7 +67,7 @@ function serializeTrekList(r: TrekListRaw) {
     id: r.id.toString(),
     title: r.title,
     slug: r.slug,
-    bannerImage: r.banner_image,
+    bannerImage: buildImageUrl(r.banner_image),
     price: r.price,
     salePrice: r.sale_price,
     duration: r.duration?.toString() ?? null,
@@ -235,6 +236,11 @@ function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+function buildImageGallery(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((item) => (typeof item === "string" ? buildImageUrl(item) : item));
+}
+
 function serializeListingRaw(r: ListingRaw): ListingSummary {
   const leader: TrekLeaderSummary | null = r.leader_id
     ? {
@@ -347,13 +353,16 @@ export const getTrekBySlug = async (slug: string) => {
 
   return {
     ...trek,
+    bannerImage: buildImageUrl(trek.bannerImage),
+    gallery: buildImageGallery(trek.gallery),
+    featureImages: buildImageGallery(trek.featureImages),
     min_price: stats?.min_price ?? null,
     listing_count: stats?.listing_count ?? 0,
     leader_count: stats?.leader_count ?? 0,
     expedition_team: expeditionTeamRaw.map((l) => ({
       id: l.id.toString(),
       name: l.name,
-      image: l.image,
+      image: buildImageUrl(l.image),
       rating: l.rating,
       certifications: l.certifications,
     })),
@@ -598,5 +607,8 @@ export const getFeaturedTreks = async (limit: number = 6) => {
     },
   });
 
-  return treks;
+  return treks.map((trek) => ({
+    ...trek,
+    bannerImage: buildImageUrl(trek.bannerImage),
+  }));
 };
