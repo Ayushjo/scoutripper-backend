@@ -193,6 +193,7 @@ interface ListingStatsRaw {
   min_price: number | null;
   listing_count: number;
   leader_count: number;
+  routes_count: number;
 }
 
 interface ExpeditionLeaderRaw {
@@ -335,7 +336,12 @@ export const getTrekBySlug = async (slug: string) => {
       SELECT
         MIN(price)::float8 as min_price,
         COUNT(*)::int4 as listing_count,
-        COUNT(DISTINCT trek_leader_id)::int4 as leader_count
+        COUNT(DISTINCT trek_leader_id)::int4 as leader_count,
+        (
+          SELECT COUNT(*)::int4
+          FROM trek_routes
+          WHERE trek_id = ${trek.id}
+        ) as routes_count
       FROM trek_listings
       WHERE trek_id = ${trek.id} AND status = 'active'
     `,
@@ -359,6 +365,7 @@ export const getTrekBySlug = async (slug: string) => {
     min_price: stats?.min_price ?? null,
     listing_count: stats?.listing_count ?? 0,
     leader_count: stats?.leader_count ?? 0,
+    routes_count: stats?.routes_count ?? 0,
     expedition_team: expeditionTeamRaw.map((l) => ({
       id: l.id.toString(),
       name: l.name,

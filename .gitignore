@@ -6,3 +6,5 @@ node_modules
 /src/generated
 /dist
 .claude
+scripts/check-users.ts
+scripts/find-listing.ts
