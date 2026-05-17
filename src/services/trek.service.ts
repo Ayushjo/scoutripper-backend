@@ -26,6 +26,13 @@ interface NearbyLocationRaw {
   map_lng: number | null;
 }
 
+interface NearbyLocationCandidateRaw {
+  id: bigint;
+  name: string;
+  slug: string;
+  path: string;
+}
+
 interface CountRaw {
   count: bigint;
 }
@@ -274,6 +281,52 @@ function transformRouteDays(value: unknown): unknown {
   }
 
   return value;
+}
+
+function normalizeLocationText(value: string | null | undefined): string {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreLocationCandidate(
+  candidate: NearbyLocationCandidateRaw,
+  title: string,
+  address: string | null,
+): number {
+  const haystack = normalizeLocationText(`${title} ${address ?? ""}`);
+  const name = normalizeLocationText(candidate.name);
+  const slug = normalizeLocationText(candidate.slug);
+  const ignoredTokens = new Set([
+    "lake",
+    "trek",
+    "village",
+    "temple",
+    "fort",
+    "studio",
+    "museum",
+    "waterfall",
+    "monastery",
+    "institute",
+    "church",
+    "gardens",
+    "skyway",
+  ]);
+
+  let score = 0;
+
+  if (name && haystack.includes(name)) score += 100;
+  if (slug && haystack.includes(slug)) score += 100;
+
+  const tokens = new Set([...name.split(" "), ...slug.split(" ")]);
+  for (const token of tokens) {
+    if (token.length < 4 || ignoredTokens.has(token)) continue;
+    if (haystack.includes(token)) score += 20;
+  }
+
+  return score;
 }
 
 function serializeListingRaw(r: ListingRaw): ListingSummary {
@@ -706,16 +759,47 @@ export const getTrekRoutes = async (slug: string) => {
 };
 
 export const getNearbyLocations = async (slug: string) => {
-  const trekLocationRows = await prisma.$queryRaw<{ location_id: bigint | null }[]>`
-    SELECT location_id
+  const trekLocationRows = await prisma.$queryRaw<{
+    title: string;
+    address: string | null;
+    location_id: bigint | null;
+  }[]>`
+    SELECT title, address, location_id
     FROM treks
     WHERE slug = ${slug}
       AND deleted_at IS NULL
     LIMIT 1
   `;
 
-  const locationId = trekLocationRows[0]?.location_id ?? null;
-  if (!locationId) return null;
+  const trek = trekLocationRows[0];
+  const originalLocationId = trek?.location_id ?? null;
+  if (!trek || !originalLocationId) return null;
+
+  const candidates = await prisma.$queryRaw<NearbyLocationCandidateRaw[]>`
+    SELECT id, name, slug, path::text AS path
+    FROM locations
+    WHERE path <@ (
+      SELECT path
+      FROM locations
+      WHERE id = ${originalLocationId}
+        AND deleted_at IS NULL
+    )
+      AND id != ${originalLocationId}
+      AND status = 'publish'
+      AND deleted_at IS NULL
+    ORDER BY nlevel(path) DESC, name ASC
+  `;
+
+  const bestCandidate = candidates
+    .map((candidate) => ({
+      candidate,
+      score: scoreLocationCandidate(candidate, trek.title, trek.address),
+      level: candidate.path.split(".").length,
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || b.level - a.level)[0]?.candidate;
+
+  const locationId = bestCandidate?.id ?? originalLocationId;
 
   const parentPathRows = await prisma.$queryRaw<{ parent_path: string | null }[]>`
     SELECT subpath(path, 0, nlevel(path) - 1)::text AS parent_path
@@ -728,6 +812,17 @@ export const getNearbyLocations = async (slug: string) => {
   const parentPath = parentPathRows[0]?.parent_path ?? null;
   if (!parentPath) return [];
 
+  const trekLocationPathRows = await prisma.$queryRaw<{ trek_path_level: number | null }[]>`
+    SELECT nlevel(path) AS trek_path_level
+    FROM locations
+    WHERE id = ${locationId}
+      AND deleted_at IS NULL
+    LIMIT 1
+  `;
+
+  const trekPathLevel = trekLocationPathRows[0]?.trek_path_level ?? null;
+  if (!trekPathLevel) return [];
+
   const locations = await prisma.$queryRaw<NearbyLocationRaw[]>`
     SELECT
       id,
@@ -737,7 +832,8 @@ export const getNearbyLocations = async (slug: string) => {
       map_lat,
       map_lng
     FROM locations
-    WHERE path <@ ${parentPath}::ltree
+    WHERE subpath(path, 0, nlevel(path) - 1)::text = ${parentPath}
+      AND nlevel(path) = ${trekPathLevel}
       AND id != ${locationId}
       AND status = 'publish'
       AND deleted_at IS NULL
