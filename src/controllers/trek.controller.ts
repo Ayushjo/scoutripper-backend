@@ -214,6 +214,26 @@ export const getTrekRoutes = async (
   }
 };
 
+export const getNearbyLocations = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { slug } = req.params as { slug: string };
+    const locations = await TrekService.getNearbyLocations(slug);
+
+    if (locations === null) {
+      res.status(404).json({ success: false, message: "Trek not found" });
+      return;
+    }
+
+    res.json({ success: true, data: locations });
+  } catch (error) {
+    console.error("getNearbyLocations error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 export const getFeaturedTreks = async (
   req: Request,
   res: Response,

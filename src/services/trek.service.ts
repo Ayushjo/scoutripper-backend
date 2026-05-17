@@ -17,6 +17,15 @@ interface TrekRaw {
   location_slug: string;
 }
 
+interface NearbyLocationRaw {
+  id: bigint;
+  name: string;
+  slug: string;
+  image_id: string | null;
+  map_lat: number | null;
+  map_lng: number | null;
+}
+
 interface CountRaw {
   count: bigint;
 }
@@ -667,5 +676,55 @@ export const getTrekRoutes = async (slug: string) => {
     difficulty: route.difficulty,
     is_popular: route.is_popular ?? false,
     days: transformRouteDays(route.days),
+  }));
+};
+
+export const getNearbyLocations = async (slug: string) => {
+  const trekLocationRows = await prisma.$queryRaw<{ location_id: bigint | null }[]>`
+    SELECT location_id
+    FROM treks
+    WHERE slug = ${slug}
+      AND deleted_at IS NULL
+    LIMIT 1
+  `;
+
+  const locationId = trekLocationRows[0]?.location_id ?? null;
+  if (!locationId) return null;
+
+  const parentPathRows = await prisma.$queryRaw<{ parent_path: string | null }[]>`
+    SELECT subpath(path, 0, nlevel(path) - 1)::text AS parent_path
+    FROM locations
+    WHERE id = ${locationId}
+      AND deleted_at IS NULL
+    LIMIT 1
+  `;
+
+  const parentPath = parentPathRows[0]?.parent_path ?? null;
+  if (!parentPath) return [];
+
+  const locations = await prisma.$queryRaw<NearbyLocationRaw[]>`
+    SELECT
+      id,
+      name,
+      slug,
+      image_id,
+      map_lat,
+      map_lng
+    FROM locations
+    WHERE path <@ ${parentPath}::ltree
+      AND id != ${locationId}
+      AND status = 'publish'
+      AND deleted_at IS NULL
+    ORDER BY name ASC
+    LIMIT 6
+  `;
+
+  return locations.map((location) => ({
+    id: location.id.toString(),
+    name: location.name,
+    slug: location.slug,
+    image: buildImageUrl(location.image_id),
+    map_lat: location.map_lat,
+    map_lng: location.map_lng,
   }));
 };
