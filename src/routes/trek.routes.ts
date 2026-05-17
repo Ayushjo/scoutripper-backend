@@ -6,6 +6,7 @@ const router = Router();
 router.get("/featured", TrekController.getFeaturedTreks);
 router.get("/location/:slug", TrekController.getTreksByLocation);
 router.get("/:slug/breadcrumb", TrekController.getTrekBreadcrumb);
+router.get("/:slug/routes", TrekController.getTrekRoutes);
 router.get("/:slug/related", TrekController.getRelatedTreks);
 router.get("/:slug/listings", TrekController.getTrekListings);
 router.get("/:slug", TrekController.getTrekBySlug);

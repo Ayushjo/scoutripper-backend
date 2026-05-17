@@ -242,6 +242,25 @@ function buildImageGallery(value: unknown): unknown {
   return value.map((item) => (typeof item === "string" ? buildImageUrl(item) : item));
 }
 
+function transformRouteDays(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => transformRouteDays(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, val]) => [
+        key,
+        key === "image" && typeof val === "string"
+          ? buildImageUrl(val)
+          : transformRouteDays(val),
+      ]),
+    );
+  }
+
+  return value;
+}
+
 function serializeListingRaw(r: ListingRaw): ListingSummary {
   const leader: TrekLeaderSummary | null = r.leader_id
     ? {
@@ -617,5 +636,36 @@ export const getFeaturedTreks = async (limit: number = 6) => {
   return treks.map((trek) => ({
     ...trek,
     bannerImage: buildImageUrl(trek.bannerImage),
+  }));
+};
+
+export const getTrekRoutes = async (slug: string) => {
+  const trek = await prisma.trek.findUnique({
+    where: { slug },
+    select: { id: true },
+  });
+
+  if (!trek) return null;
+
+  const routes = await prisma.trek_routes.findMany({
+    where: { trek_id: trek.id },
+    orderBy: [{ is_popular: "desc" }, { id: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      distance_km: true,
+      difficulty: true,
+      is_popular: true,
+      days: true,
+    },
+  });
+
+  return routes.map((route) => ({
+    id: route.id.toString(),
+    name: route.name,
+    distance_km: route.distance_km,
+    difficulty: route.difficulty,
+    is_popular: route.is_popular ?? false,
+    days: transformRouteDays(route.days),
   }));
 };

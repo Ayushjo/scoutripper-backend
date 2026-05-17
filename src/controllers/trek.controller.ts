@@ -194,6 +194,25 @@ export const getTrekListings = async (
   }
 };
 
+export const getTrekRoutes = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { slug } = req.params as { slug: string };
+    const routes = await TrekService.getTrekRoutes(slug);
+
+    if (!routes) {
+      res.status(404).json({ success: false, message: "Trek not found" });
+      return;
+    }
+
+    res.json({ success: true, data: routes });
+  } catch (error) {
+    console.error("getTrekRoutes error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
 
 export const getFeaturedTreks = async (
   req: Request,
