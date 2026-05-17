@@ -213,6 +213,12 @@ interface ExpeditionLeaderRaw {
   certifications: unknown;
 }
 
+interface RelatedLeaderRaw {
+  id: bigint;
+  name: string;
+  image: string | null;
+}
+
 interface ListingRaw {
   id: bigint;
   title: string;
@@ -543,7 +549,27 @@ export const getRelatedTreks = async (slug: string, limit: number = 6) => {
     LIMIT ${limit}
   `;
 
-  return related.map(serializeTrekRaw);
+  return Promise.all(
+    related.map(async (trek) => {
+      const leaders = await prisma.$queryRaw<RelatedLeaderRaw[]>`
+        SELECT DISTINCT tl.id, tl.name, tl.image
+        FROM trek_leaders tl
+        JOIN trek_listings tll ON tll.trek_leader_id = tl.id
+        WHERE tll.trek_id = ${trek.id}
+          AND tll.status = 'active'
+        ORDER BY tl.id ASC
+        LIMIT 3
+      `;
+
+      return {
+        ...serializeTrekRaw(trek),
+        leaders: leaders.map((leader) => ({
+          name: leader.name,
+          image: buildImageUrl(leader.image),
+        })),
+      };
+    }),
+  );
 };
 
 
