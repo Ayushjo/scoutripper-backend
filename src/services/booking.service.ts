@@ -115,6 +115,8 @@ function serializeBookingDetail(r: BookingListRaw): BookingDetailResponse {
   };
 }
 
+// Bug 2 fix: store actual price total in item_price_total; store listing reference in listing_id
+// Bug 5 fix: store user_id; scope queries by user_id instead of user_email
 export const createBooking = async (
   body: CreateBookingBody,
   user: { id: string; name: string; email: string },
@@ -182,9 +184,14 @@ export const createBooking = async (
         item_name: d.title,
         item_type: "trek",
         item_id: d.trek_id,
-        item_price_total: d.listing_id,
+        // Bug 2 fix: item_price_total now stores the actual price total (in paise/cents as integer)
+        item_price_total: BigInt(Math.round(total)),
+        // Bug 2 fix: listing_id properly stores the listing reference
+        listing_id: d.listing_id,
         user_name: user.name,
         user_email: user.email,
+        // Bug 5 fix: store user_id for robust identity scoping
+        user_id: user.id,
         adult_count: BigInt(adult_count),
         children_count: BigInt(children_count),
         amount_paid: total,
@@ -243,7 +250,8 @@ export const createBooking = async (
   };
 };
 
-export const getUserBookings = async (email: string): Promise<BookingResponse[]> => {
+// Bug 5 fix: scope by user_id; also join trek_listings on listing_id (Bug 2 fix)
+export const getUserBookings = async (userId: string): Promise<BookingResponse[]> => {
   const rows = await prisma.$queryRaw<BookingListRaw[]>`
     SELECT
       b.id, b.item_name, b.item_type, b.status, b.amount_paid,
@@ -267,7 +275,7 @@ export const getUserBookings = async (email: string): Promise<BookingResponse[]>
       NULL::text      AS trek_slug,
       NULL::text      AS trek_banner
     FROM bookings b
-    LEFT JOIN trek_listings tl ON tl.id = b.item_price_total
+    LEFT JOIN trek_listings tl ON tl.id = b.listing_id
     LEFT JOIN vendors v ON v.id = tl.vendor_id
     LEFT JOIN LATERAL (
       SELECT id, start_date, end_date, total_seats, available_seats, status
@@ -276,16 +284,17 @@ export const getUserBookings = async (email: string): Promise<BookingResponse[]>
         AND start_date = b.scheduled_on::date
       LIMIT 1
     ) s ON true
-    WHERE b.user_email = ${email}
+    WHERE b.user_id = ${userId}
     ORDER BY b.created_at DESC
   `;
 
   return rows.map(serializeBookingList);
 };
 
+// Bug 5 fix: scope by user_id; also join trek_listings on listing_id (Bug 2 fix)
 export const getBookingById = async (
   id: bigint,
-  email: string,
+  userId: string,
 ): Promise<BookingDetailResponse | null> => {
   const rows = await prisma.$queryRaw<BookingListRaw[]>`
     SELECT
@@ -310,7 +319,7 @@ export const getBookingById = async (
       t.slug          AS trek_slug,
       t.banner_image  AS trek_banner
     FROM bookings b
-    LEFT JOIN trek_listings tl ON tl.id = b.item_price_total
+    LEFT JOIN trek_listings tl ON tl.id = b.listing_id
     LEFT JOIN vendors v ON v.id = tl.vendor_id
     LEFT JOIN treks t ON t.id = b.item_id
     LEFT JOIN LATERAL (
@@ -320,7 +329,7 @@ export const getBookingById = async (
         AND start_date = b.scheduled_on::date
       LIMIT 1
     ) s ON true
-    WHERE b.id = ${id} AND b.user_email = ${email}
+    WHERE b.id = ${id} AND b.user_id = ${userId}
   `;
 
   if (!rows.length) return null;

@@ -1,5 +1,6 @@
 import prisma from "../utils/db";
 import { PaginationMeta } from "../types/trek.types";
+import { buildImageUrl } from "../utils/image";
 
 interface CategoryRaw {
   id: bigint;
@@ -105,7 +106,7 @@ function serializeTrekByCategory(r: TrekByCategoryRaw) {
     id: r.id.toString(),
     title: r.title,
     slug: r.slug,
-    bannerImage: r.banner_image,
+    bannerImage: buildImageUrl(r.banner_image),
     price: r.price,
     salePrice: r.sale_price,
     duration: r.duration?.toString() ?? null,

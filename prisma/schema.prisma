@@ -167,6 +167,11 @@ model bookings {
   adult_count      BigInt?
   children_count   BigInt?
   item_price_total BigInt?
+  listing_id       BigInt?
+  user_id          String?
+
+  @@index([user_id], map: "idx_bookings_user_id")
+  @@index([listing_id], map: "idx_bookings_listing_id")
 }
 
 model experience_attributes {

@@ -49,7 +49,7 @@ export const getUserBookings = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const bookings = await BookingService.getUserBookings(req.user!.email);
+    const bookings = await BookingService.getUserBookings(req.user!.id);
     res.json({ success: true, data: bookings });
   } catch (error) {
     console.error("getUserBookings error:", error);
@@ -71,7 +71,7 @@ export const getBookingById = async (
 
     const booking = await BookingService.getBookingById(
       BigInt(rawId),
-      req.user!.email,
+      req.user!.id,
     );
 
     if (!booking) {

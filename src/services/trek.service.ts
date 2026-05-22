@@ -449,6 +449,8 @@ export const getTrekBySlug = async (slug: string) => {
     bannerImage: buildImageUrl(trek.bannerImage),
     gallery: buildImageGallery(trek.gallery),
     featureImages: buildImageGallery(trek.featureImages),
+    difficulty: trek.difficulty ?? null,
+    highlights: trek.highlights ?? null,
     min_price: stats?.min_price ?? null,
     listing_count: stats?.listing_count ?? 0,
     leader_count: stats?.leader_count ?? 0,
@@ -518,7 +520,6 @@ export const getTrekListings = async (slug: string): Promise<ListingSummary[] | 
   return listings.map(serializeListingRaw);
 };
 
-
 export const getTrekBreadcrumb = async (slug: string) => {
   const trek = await prisma.trek.findUnique({
     where: { slug },
@@ -554,7 +555,7 @@ export const getTrekBreadcrumb = async (slug: string) => {
 
   return {
     trek: { title: trek.title, slug: trek.slug },
-    breadcrumb: breadcrumb.map((b:any) => ({
+    breadcrumb: breadcrumb.map((b: any) => ({
       id: b.id.toString(),
       name: b.name,
       slug: b.slug,
@@ -602,27 +603,37 @@ export const getRelatedTreks = async (slug: string, limit: number = 6) => {
     LIMIT ${limit}
   `;
 
-  return Promise.all(
-    related.map(async (trek) => {
-      const leaders = await prisma.$queryRaw<RelatedLeaderRaw[]>`
-        SELECT DISTINCT tl.id, tl.name, tl.image
-        FROM trek_leaders tl
-        JOIN trek_listings tll ON tll.trek_leader_id = tl.id
-        WHERE tll.trek_id = ${trek.id}
-          AND tll.status = 'active'
-        ORDER BY tl.id ASC
-        LIMIT 3
-      `;
+  if (!related.length) return [];
 
-      return {
-        ...serializeTrekRaw(trek),
-        leaders: leaders.map((leader) => ({
-          name: leader.name,
-          image: buildImageUrl(leader.image),
-        })),
-      };
-    }),
-  );
+  // Batch leaders for all related treks in a single query (avoids N+1)
+  const relatedIds = related.map((t) => t.id);
+  interface BatchedLeaderRaw extends RelatedLeaderRaw { trek_id: bigint; }
+  const allLeaders = await prisma.$queryRaw<BatchedLeaderRaw[]>`
+    SELECT DISTINCT ON (tll.trek_id, tl.id)
+      tl.id, tl.name, tl.image,
+      tll.trek_id
+    FROM trek_leaders tl
+    JOIN trek_listings tll ON tll.trek_leader_id = tl.id
+    WHERE tll.trek_id = ANY(${relatedIds}::bigint[])
+      AND tll.status = 'active'
+    ORDER BY tll.trek_id, tl.id ASC
+  `;
+
+  // Group leaders by trek_id for fast lookup
+  const leadersByTrekId = new Map<string, { name: string; image: string | null }[]>();
+  for (const l of allLeaders) {
+    const key = l.trek_id.toString();
+    if (!leadersByTrekId.has(key)) leadersByTrekId.set(key, []);
+    const arr = leadersByTrekId.get(key)!;
+    if (arr.length < 3) {
+      arr.push({ name: l.name, image: buildImageUrl(l.image) });
+    }
+  }
+
+  return related.map((t) => ({
+    ...serializeTrekRaw(t),
+    leaders: leadersByTrekId.get(t.id.toString()) ?? [],
+  }));
 };
 
 

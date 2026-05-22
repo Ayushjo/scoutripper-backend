@@ -155,13 +155,17 @@ export const addToWishlist = async (
 export const removeFromWishlist = async (
   id: bigint,
   userId: string,
-): Promise<{ error: string; status: 404 } | { success: true }> => {
-  const item = await prisma.wishlist.findFirst({
-    where: { id, user_id: userId },
-  });
+): Promise<{ error: string; status: 404 | 403 } | { success: true }> => {
+  // Step 1: check the item exists at all
+  const item = await prisma.wishlist.findUnique({ where: { id } });
 
   if (!item) {
     return { error: "Wishlist item not found", status: 404 };
+  }
+
+  // Step 2: check ownership
+  if (item.user_id !== userId) {
+    return { error: "Forbidden — this wishlist item belongs to another user", status: 403 };
   }
 
   await prisma.wishlist.delete({ where: { id } });
