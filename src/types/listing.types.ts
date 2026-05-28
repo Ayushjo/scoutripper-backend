@@ -12,6 +12,7 @@ export interface VendorDetail {
   description: string | null;
   is_verified: boolean;
   phone: string | null;
+  email: string | null;
 }
 
 export interface TrekLeaderSummary {
@@ -69,11 +70,19 @@ export interface SlotDetail {
   status: string;
 }
 
-export interface TrekSummary {
+export interface TrekImages {
+  banner: string | null;
+  gallery: unknown;
+  feature_images: unknown;
+}
+
+export interface TrekDetail {
   id: string;
   title: string;
   slug: string;
-  banner_image: string | null;
+  altitude: string | null;
+  difficulty: string | null;
+  reviewScore: string | null;
 }
 
 export interface ListingDetail {
@@ -95,10 +104,13 @@ export interface ListingDetail {
   inclusions: unknown;
   exclusions: unknown;
   highlights: unknown;
+  things_to_carry: unknown;
   cancellation_policy: string | null;
   is_popular: boolean;
+  status: string | null;
+  trek_images: TrekImages;
   vendor: VendorDetail;
   trek_leader: TrekLeaderDetail | null;
-  trek: TrekSummary | null;
+  trek: TrekDetail | null;
   slots: SlotDetail[];
 }

@@ -87,6 +87,7 @@ model Trek {
   inclusions      Json?
   difficulty      String?
   highlights      Json?
+  reviews         reviews[]
   attributes      TrekAttribute[]
   trek_listings   trek_listings[]
   trek_routes     trek_routes[]
@@ -169,6 +170,7 @@ model bookings {
   item_price_total BigInt?
   listing_id       BigInt?
   user_id          String?
+  reviews          reviews[]
 
   @@index([user_id], map: "idx_bookings_user_id")
   @@index([listing_id], map: "idx_bookings_listing_id")
@@ -338,6 +340,7 @@ model trek_leaders {
   status           String?         @default("active")
   created_at       DateTime?       @default(now()) @db.Timestamptz(6)
   updated_at       DateTime?       @default(now()) @db.Timestamptz(6)
+  reviews          reviews[]
   vendors          vendors?        @relation(fields: [vendor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   trek_listings    trek_listings[]
 
@@ -372,6 +375,8 @@ model trek_listings {
   status              String?       @default("active")
   created_at          DateTime?     @default(now()) @db.Timestamptz(6)
   updated_at          DateTime?     @default(now()) @db.Timestamptz(6)
+  things_to_carry     Json?
+  reviews             reviews[]
   treks               Trek?         @relation(fields: [trek_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   trek_leaders        trek_leaders? @relation(fields: [trek_leader_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   vendors             vendors?      @relation(fields: [vendor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -413,6 +418,7 @@ model vendors {
   status        String?         @default("active")
   created_at    DateTime?       @default(now()) @db.Timestamptz(6)
   updated_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  reviews       reviews[]
   trek_leaders  trek_leaders[]
   trek_listings trek_listings[]
 
@@ -433,4 +439,39 @@ model trek_routes {
   treks       Trek?     @relation(fields: [trek_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([trek_id], map: "idx_trek_routes_trek_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reviews {
+  id                BigInt         @id @default(autoincrement())
+  vendor_id         BigInt
+  booking_id        BigInt?
+  user_id           String
+  trek_id           BigInt?
+  trek_leader_id    BigInt?
+  listing_id        BigInt?
+  rating            Float          @db.Real
+  title             String?
+  body              String?
+  photos            Json?
+  guide_expertise   Float?         @db.Real
+  safety_protocols  Float?         @db.Real
+  logistics_gear    Float?         @db.Real
+  sustainability    Float?         @db.Real
+  helpful_count     Int            @default(0)
+  not_helpful_count Int            @default(0)
+  status            String         @default("published")
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @default(now()) @db.Timestamptz(6)
+  bookings          bookings?      @relation(fields: [booking_id], references: [id], onUpdate: NoAction)
+  trek_listings     trek_listings? @relation(fields: [listing_id], references: [id], onUpdate: NoAction)
+  treks             Trek?          @relation(fields: [trek_id], references: [id], onUpdate: NoAction)
+  trek_leaders      trek_leaders?  @relation(fields: [trek_leader_id], references: [id], onUpdate: NoAction)
+  vendors           vendors        @relation(fields: [vendor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([listing_id])
+  @@index([status])
+  @@index([trek_id])
+  @@index([user_id])
+  @@index([vendor_id])
 }

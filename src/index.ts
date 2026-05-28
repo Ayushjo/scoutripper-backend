@@ -9,6 +9,7 @@ import locationRoutes from "./routes/location.routes";
 import categoryRoutes from "./routes/category.routes";
 import userRoutes from "./routes/user.routes";
 import experienceRoutes from "./routes/experience.routes";
+import reviewRoutes from "./routes/review.routes";
 import { toNodeHandler } from "better-auth/node";
 import { auth, Auth } from "./lib/auth";
 dotenv.config();
@@ -31,6 +32,7 @@ app.use("/api/v1/locations", locationRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/experiences", experienceRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
 
 
 app.get("/health", (req, res) => {

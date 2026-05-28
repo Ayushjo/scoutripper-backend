@@ -1,9 +1,14 @@
 import prisma from "../utils/db";
-import { ListingDetail, SlotDetail } from "../types/listing.types";
+import { ListingDetail, SlotDetail, TrekImages } from "../types/listing.types";
 import { buildImageUrl } from "../utils/image";
 
 function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
+}
+
+function buildImageGallery(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((item) => (typeof item === "string" ? buildImageUrl(item) : item));
 }
 
 export const getListingById = async (id: bigint): Promise<ListingDetail | null> => {
@@ -18,6 +23,7 @@ export const getListingById = async (id: bigint): Promise<ListingDetail | null> 
           description: true,
           is_verified: true,
           phone: true,
+          email: true,
         },
       },
       trek_leaders: {
@@ -37,7 +43,12 @@ export const getListingById = async (id: bigint): Promise<ListingDetail | null> 
           id: true,
           title: true,
           slug: true,
+          altitude: true,
+          difficulty: true,
+          reviewScore: true,
           bannerImage: true,
+          gallery: true,
+          featureImages: true,
         },
       },
       trek_slots: {
@@ -71,6 +82,12 @@ export const getListingById = async (id: bigint): Promise<ListingDetail | null> 
     status: s.status ?? "open",
   }));
 
+  const trek_images: TrekImages = {
+    banner: buildImageUrl(listing.treks?.bannerImage ?? null),
+    gallery: buildImageGallery(listing.treks?.gallery ?? null),
+    feature_images: buildImageGallery(listing.treks?.featureImages ?? null),
+  };
+
   return {
     id: listing.id.toString(),
     title: listing.title,
@@ -90,8 +107,11 @@ export const getListingById = async (id: bigint): Promise<ListingDetail | null> 
     inclusions: listing.inclusions,
     exclusions: listing.exclusions,
     highlights: listing.highlights,
+    things_to_carry: listing.things_to_carry,
     cancellation_policy: listing.cancellation_policy,
     is_popular: listing.is_popular ?? false,
+    status: listing.status,
+    trek_images,
     vendor: {
       id: listing.vendors.id.toString(),
       name: listing.vendors.name,
@@ -99,6 +119,7 @@ export const getListingById = async (id: bigint): Promise<ListingDetail | null> 
       description: listing.vendors.description,
       is_verified: listing.vendors.is_verified ?? false,
       phone: listing.vendors.phone,
+      email: listing.vendors.email ?? null,
     },
     trek_leader: listing.trek_leaders
       ? {
@@ -117,7 +138,9 @@ export const getListingById = async (id: bigint): Promise<ListingDetail | null> 
           id: listing.treks.id.toString(),
           title: listing.treks.title,
           slug: listing.treks.slug,
-          banner_image: buildImageUrl(listing.treks.bannerImage),
+          altitude: listing.treks.altitude,
+          difficulty: listing.treks.difficulty,
+          reviewScore: listing.treks.reviewScore,
         }
       : null,
     slots,
