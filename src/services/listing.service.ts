@@ -54,7 +54,7 @@ export const getListingById = async (id: bigint): Promise<ListingDetail | null> 
       trek_slots: {
         where: {
           start_date: { gte: new Date() },
-          status: { in: ["open", "full"] },
+          status: { in: ["open", "sold_out"] },
         },
         orderBy: { start_date: "asc" },
         select: {

@@ -165,7 +165,7 @@ export const createBooking = async (
   const total = totalPeople * (d.price ?? 0);
   const newAvailable = d.available_seats - totalPeople;
   const newBooked = (d.booked_seats ?? 0) + totalPeople;
-  const newSlotStatus = newAvailable === 0 ? "full" : d.slot_status;
+  const newSlotStatus = newAvailable === 0 ? "sold_out" : d.slot_status;
 
   const booking = await prisma.$transaction(async (tx) => {
     const freshSlot = await tx.trek_slots.findUnique({
