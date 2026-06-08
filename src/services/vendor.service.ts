@@ -14,15 +14,14 @@ function buildImageGallery(value: unknown): unknown {
 
 // ─── Shared body types ────────────────────────────────────────────────────────
 
-// Fields that map to real trek_listings columns.
-// NOTE: banner_image / gallery / duration_nights / physical_fitness are not
-// columns on trek_listings; they are intentionally omitted here.
 export interface ListingBody {
   vendor_id: number;
   trek_id?: number;
   title?: string;
   difficulty?: string;
   duration_days?: number;
+  duration_nights?: number;      // stored in trek_listings.duration_nights
+  physical_fitness?: string;     // stored in trek_listings.physical_fitness
   intro_text?: string;
   itinerary?: unknown;
   inclusions?: unknown;
@@ -43,9 +42,10 @@ export interface ListingBody {
 
 export interface SlotInput {
   start_date: string;
-  end_date: string;
+  end_date?: string;   // optional — auto-computed as start_date + listing.duration_days if omitted
   total_seats: number;
-  // NOTE: price / min_seats have no columns on trek_slots — not persisted.
+  price?: number;      // per-slot price override; falls back to listing price when null
+  min_seats?: number;  // group size minimum (default 1)
 }
 
 export interface AddSlotsBody {
@@ -57,6 +57,8 @@ export interface AddSlotsBody {
 export interface UpdateSlotBody {
   vendor_id: number;
   total_seats?: number;
+  min_seats?: number;  // group size minimum
+  price?: number;      // per-slot price override
   status?: string;
 }
 
@@ -103,6 +105,8 @@ export const createListing = async (
       status: "draft",
       difficulty: body.difficulty ?? null,
       duration_days: body.duration_days ?? null,
+      duration_nights: body.duration_nights ?? null,
+      physical_fitness: body.physical_fitness ?? null,
       intro_text: body.intro_text ?? null,
       ...(body.itinerary !== undefined ? { itinerary: body.itinerary as never } : {}),
       ...(body.inclusions !== undefined ? { inclusions: body.inclusions as never } : {}),
@@ -151,6 +155,8 @@ export const updateListing = async (
       ...(body.title !== undefined ? { title: body.title } : {}),
       ...(body.difficulty !== undefined ? { difficulty: body.difficulty } : {}),
       ...(body.duration_days !== undefined ? { duration_days: body.duration_days } : {}),
+      ...(body.duration_nights !== undefined ? { duration_nights: body.duration_nights } : {}),
+      ...(body.physical_fitness !== undefined ? { physical_fitness: body.physical_fitness } : {}),
       ...(body.intro_text !== undefined ? { intro_text: body.intro_text } : {}),
       ...(body.itinerary !== undefined ? { itinerary: body.itinerary as never } : {}),
       ...(body.inclusions !== undefined ? { inclusions: body.inclusions as never } : {}),
@@ -277,6 +283,8 @@ export const getVendorListingDetail = async (
           available_seats: true,
           booked_seats: true,
           status: true,
+          price: true,
+          min_seats: true,
         },
       },
     },
@@ -298,6 +306,8 @@ export const getVendorListingDetail = async (
     available_seats: s.available_seats,
     booked_seats: s.booked_seats ?? 0,
     status: s.status ?? "open",
+    price: s.price ?? null,           // null means use listing base price
+    min_seats: s.min_seats ?? 1,
   }));
 
   const trek_images = {
@@ -315,6 +325,8 @@ export const getVendorListingDetail = async (
       price: listing.price,
       sale_price: listing.sale_price,
       duration_days: listing.duration_days,
+      duration_nights: listing.duration_nights,
+      physical_fitness: listing.physical_fitness,
       distance_km: listing.distance_km,
       elevation_gain: listing.elevation_gain,
       ascent_time: listing.ascent_time,
@@ -378,29 +390,32 @@ export const addSlots = async (
     return { error: "At least one slot is required", status: 400 };
   }
 
-  // Validate each slot: end_date must be >= start_date, and start_date within 365 days
+  // Validate each slot: start_date within 365 days; if end_date provided it must be >= start_date
   const maxAllowedDate = new Date();
   maxAllowedDate.setDate(maxAllowedDate.getDate() + 365);
   for (const slot of body.slots) {
     const start = new Date(slot.start_date);
-    const end = new Date(slot.end_date);
-    if (end < start) {
-      return {
-        error: `Slot end_date (${slot.end_date}) must be on or after start_date (${slot.start_date})`,
-        status: 400,
-      };
-    }
     if (start > maxAllowedDate) {
       return {
         error: `Slot start_date ${slot.start_date} exceeds the maximum allowed date of 365 days from today`,
         status: 400,
       };
     }
+    if (slot.end_date !== undefined) {
+      const end = new Date(slot.end_date);
+      if (end < start) {
+        return {
+          error: `Slot end_date (${slot.end_date}) must be on or after start_date (${slot.start_date})`,
+          status: 400,
+        };
+      }
+    }
   }
 
   const listing = await prisma.trek_listings.findUnique({
     where: { id: listingId },
-    select: { id: true, vendor_id: true, status: true },
+    // duration_days is needed to auto-compute end_date when the caller omits it
+    select: { id: true, vendor_id: true, status: true, duration_days: true },
   });
 
   if (!listing) return { error: "Listing not found", status: 404 };
@@ -443,15 +458,35 @@ export const addSlots = async (
 
   await prisma.$transaction(async (tx) => {
     await tx.trek_slots.createMany({
-      data: body.slots.map((s) => ({
-        listing_id: listingId,
-        start_date: new Date(s.start_date),
-        end_date: new Date(s.end_date),
-        total_seats: s.total_seats,
-        available_seats: s.total_seats,
-        booked_seats: 0,
-        status: "open",
-      })),
+      data: body.slots.map((s) => {
+        const startDate = new Date(s.start_date);
+
+        // end_date is optional — auto-compute as start_date + duration_days when omitted.
+        // If the listing has no duration_days set, end_date defaults to the same day.
+        let endDate: Date;
+        if (s.end_date) {
+          endDate = new Date(s.end_date);
+        } else if (listing.duration_days) {
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + listing.duration_days);
+        } else {
+          endDate = new Date(startDate);
+        }
+
+        return {
+          listing_id: listingId,
+          start_date: startDate,
+          end_date: endDate,
+          total_seats: s.total_seats,
+          available_seats: s.total_seats,
+          booked_seats: 0,
+          status: "open",
+          // per-slot price override (null means fall back to listing price on read)
+          price: s.price ?? null,
+          // group size minimum (default 1)
+          min_seats: s.min_seats ?? 1,
+        };
+      }),
     });
 
     // Promote draft → active and optionally set cancellation_policy
@@ -529,6 +564,8 @@ export const updateSlot = async (
         ? { total_seats: body.total_seats, available_seats: newAvailableSeats }
         : {}),
       ...(body.status !== undefined ? { status: body.status } : {}),
+      ...(body.price !== undefined ? { price: body.price } : {}),
+      ...(body.min_seats !== undefined ? { min_seats: body.min_seats } : {}),
     },
     select: { id: true },
   });

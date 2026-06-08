@@ -136,7 +136,7 @@ export const createBooking = async (
       tl.id           AS listing_id,
       tl.title,
       tl.trek_id,
-      tl.price,
+      COALESCE(s.price, tl.price) AS price,
       tl.route_name,
       tl.difficulty,
       tl.meeting_point,
