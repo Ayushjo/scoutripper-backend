@@ -23,6 +23,9 @@ export const createBooking = async (
       return;
     }
 
+    // Default children_count to 0 when omitted — prevents NaN in seat arithmetic
+    body.children_count = body.children_count ?? 0;
+
     const result = await BookingService.createBooking(body, req.user!);
 
     if ("error" in result) {

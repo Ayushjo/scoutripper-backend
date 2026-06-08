@@ -163,55 +163,58 @@ export const createBooking = async (
   }
 
   const total = totalPeople * (d.price ?? 0);
-  const newAvailable = d.available_seats - totalPeople;
-  const newBooked = (d.booked_seats ?? 0) + totalPeople;
-  const newSlotStatus = newAvailable === 0 ? "sold_out" : d.slot_status;
 
-  const booking = await prisma.$transaction(async (tx) => {
-    const freshSlot = await tx.trek_slots.findUnique({
-      where: { id: d.slot_id },
-      select: { available_seats: true },
-    });
-
-    if (!freshSlot || freshSlot.available_seats < totalPeople) {
-      throw Object.assign(new Error("Not enough seats available"), {
-        code: "SEAT_CONFLICT",
+  // All seat arithmetic is computed INSIDE the transaction from a fresh DB read
+  // so concurrent bookings never write stale available_seats / booked_seats.
+  const { booking, finalAvailable, finalSlotStatus } = await prisma.$transaction(
+    async (tx) => {
+      const freshSlot = await tx.trek_slots.findUnique({
+        where: { id: d.slot_id },
+        select: { available_seats: true, booked_seats: true },
       });
-    }
 
-    const b = await tx.bookings.create({
-      data: {
-        item_name: d.title,
-        item_type: "trek",
-        item_id: d.trek_id,
-        // Bug 2 fix: item_price_total now stores the actual price total (in paise/cents as integer)
-        item_price_total: BigInt(Math.round(total)),
-        // Bug 2 fix: listing_id properly stores the listing reference
-        listing_id: d.listing_id,
-        user_name: user.name,
-        user_email: user.email,
-        // Bug 5 fix: store user_id for robust identity scoping
-        user_id: user.id,
-        adult_count: BigInt(adult_count),
-        children_count: BigInt(children_count),
-        amount_paid: total,
-        status: "pending",
-        scheduled_on: d.start_date,
-        special_request: special_request ?? null,
-      },
-    });
+      if (!freshSlot || freshSlot.available_seats < totalPeople) {
+        throw Object.assign(new Error("Not enough seats available"), {
+          code: "SEAT_CONFLICT",
+        });
+      }
 
-    await tx.trek_slots.update({
-      where: { id: d.slot_id },
-      data: {
-        available_seats: newAvailable,
-        booked_seats: newBooked,
-        status: newSlotStatus,
-      },
-    });
+      const freshNewAvailable = freshSlot.available_seats - totalPeople;
+      const freshNewBooked = (freshSlot.booked_seats ?? 0) + totalPeople;
+      const freshNewSlotStatus =
+        freshNewAvailable === 0 ? "sold_out" : d.slot_status;
 
-    return b;
-  });
+      const b = await tx.bookings.create({
+        data: {
+          item_name: d.title,
+          item_type: "trek",
+          item_id: d.trek_id,
+          item_price_total: BigInt(Math.round(total)),
+          listing_id: d.listing_id,
+          user_name: user.name,
+          user_email: user.email,
+          user_id: user.id,
+          adult_count: BigInt(adult_count),
+          children_count: BigInt(children_count),
+          amount_paid: total,
+          status: "pending",
+          scheduled_on: d.start_date,
+          special_request: special_request ?? null,
+        },
+      });
+
+      await tx.trek_slots.update({
+        where: { id: d.slot_id },
+        data: {
+          available_seats: freshNewAvailable,
+          booked_seats: freshNewBooked,
+          status: freshNewSlotStatus,
+        },
+      });
+
+      return { booking: b, finalAvailable: freshNewAvailable, finalSlotStatus: freshNewSlotStatus };
+    },
+  );
 
   return {
     data: {
@@ -243,8 +246,8 @@ export const createBooking = async (
         start_date: fmt(d.start_date)!,
         end_date: fmt(d.end_date)!,
         total_seats: d.total_seats,
-        available_seats: newAvailable,
-        status: newSlotStatus,
+        available_seats: finalAvailable,
+        status: finalSlotStatus,
       },
     },
   };

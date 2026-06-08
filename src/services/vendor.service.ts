@@ -378,11 +378,19 @@ export const addSlots = async (
     return { error: "At least one slot is required", status: 400 };
   }
 
-  // Reject any slot whose start_date is more than 365 days from today
+  // Validate each slot: end_date must be >= start_date, and start_date within 365 days
   const maxAllowedDate = new Date();
   maxAllowedDate.setDate(maxAllowedDate.getDate() + 365);
   for (const slot of body.slots) {
-    if (new Date(slot.start_date) > maxAllowedDate) {
+    const start = new Date(slot.start_date);
+    const end = new Date(slot.end_date);
+    if (end < start) {
+      return {
+        error: `Slot end_date (${slot.end_date}) must be on or after start_date (${slot.start_date})`,
+        status: 400,
+      };
+    }
+    if (start > maxAllowedDate) {
       return {
         error: `Slot start_date ${slot.start_date} exceeds the maximum allowed date of 365 days from today`,
         status: 400,

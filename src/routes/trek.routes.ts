@@ -10,9 +10,10 @@ router.get("/:slug/routes", TrekController.getTrekRoutes);
 router.get("/:slug/nearby-locations", TrekController.getNearbyLocations);
 router.get("/:slug/related", TrekController.getRelatedTreks);
 router.get("/:slug/listings", TrekController.getTrekListings);
-router.get("/:slug", TrekController.getTrekBySlug);
-router.get("/", TrekController.getAllTreks);
+// Static /me/wishlist MUST come before /:slug to avoid being shadowed
 router.get("/me/wishlist", requireAuth, (req, res) => {
   res.json({ success: true, message: `Hello ${(req as any).user.name}` });
 });
+router.get("/", TrekController.getAllTreks);
+router.get("/:slug", TrekController.getTrekBySlug);
 export default router;

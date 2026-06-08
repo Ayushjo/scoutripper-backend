@@ -1,0 +1,875 @@
+{
+  "info": {
+    "_postman_id": "scoutripper-backend-v1",
+    "name": "ScoutRipper API",
+    "description": "Complete API collection for the ScoutRipper backend.\n\n**Base URL:** `{{baseUrl}}` — set this variable to `http://localhost:8000` for local development.\n\n**Authentication:** Protected routes require a session cookie set by `POST /api/auth/sign-in/email`. Postman automatically stores and forwards cookies.\n\n**Vendor routes** additionally require `vendor_id` in the request body or query string — this is the numeric ID of the vendor record the authenticated user is operating on.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Base URL of the ScoutRipper API server"
+    },
+    {
+      "key": "trekSlug",
+      "value": "kedarkantha-winter-trek",
+      "type": "string"
+    },
+    {
+      "key": "listingId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "wishlistItemId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "locationSlug",
+      "value": "uttarakhand",
+      "type": "string"
+    },
+    {
+      "key": "categorySlug",
+      "value": "himalayan-treks",
+      "type": "string"
+    },
+    {
+      "key": "experienceSlug",
+      "value": "river-rafting-rishikesh",
+      "type": "string"
+    },
+    {
+      "key": "reviewId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "vendorId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "slotId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Returns API server status. Useful for uptime checks and verifying the server is reachable.\n\n**Auth:** None"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"ok\",\n  \"message\": \"ScoutRipper API running\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth (Better-Auth)",
+      "description": "Authentication routes managed by Better-Auth. These endpoints handle session creation, destruction, and OAuth. The library parses its own request body — do NOT send `Content-Type: application/json` for sign-in/sign-up; instead use JSON body directly (Better-Auth accepts it).",
+      "item": [
+        {
+          "name": "Sign Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"name\": \"John Doe\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/sign-up/email",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "sign-up", "email"]
+            },
+            "description": "Register a new user with email and password.\n\n**Auth:** None\n\n**Body:**\n- `email` (string, required) — unique email address\n- `password` (string, required) — plain-text password, hashed by Better-Auth\n- `name` (string, required) — display name"
+          }
+        },
+        {
+          "name": "Sign In",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePass123!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/sign-in/email",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "sign-in", "email"]
+            },
+            "description": "Authenticate with email and password. On success, Better-Auth sets a session cookie automatically. Postman stores this cookie and forwards it on subsequent requests to protected routes.\n\n**Auth:** None\n\n**Body:**\n- `email` (string, required)\n- `password` (string, required)"
+          }
+        },
+        {
+          "name": "Sign Out",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/sign-out",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "sign-out"]
+            },
+            "description": "Invalidates the current session. Clears the session cookie.\n\n**Auth:** Active session cookie required"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/forget-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "forget-password"]
+            },
+            "description": "Sends a password reset email via nodemailer (configured with `EMAIL_FROM` + `EMAIL_PASSWORD` env vars).\n\n**Auth:** None\n\n**Body:**\n- `email` (string, required) — the registered email address"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<reset-token-from-email>\",\n  \"password\": \"NewSecurePass456!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "reset-password"]
+            },
+            "description": "Consumes the reset token from the email and sets a new password.\n\n**Auth:** None\n\n**Body:**\n- `token` (string, required) — the reset token from the email link\n- `password` (string, required) — the new plain-text password"
+          }
+        },
+        {
+          "name": "Google OAuth Callback",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/callback/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "callback", "google"]
+            },
+            "description": "OAuth callback endpoint for Google. Better-Auth handles the token exchange and session creation internally. Initiate the flow by navigating to the Better-Auth Google sign-in URL.\n\n**Auth:** None (handled by OAuth flow)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Treks",
+      "description": "Public trek discovery endpoints. All routes are unauthenticated except `/me/wishlist`.",
+      "item": [
+        {
+          "name": "List Treks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks?page=1&limit=10&status=publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks"],
+              "query": [
+                { "key": "page", "value": "1", "description": "Page number (default: 1)" },
+                { "key": "limit", "value": "10", "description": "Results per page (default: 10)" },
+                { "key": "status", "value": "publish", "description": "Trek status filter (default: 'publish')" },
+                { "key": "isFeatured", "value": "yes", "description": "Filter featured treks — pass 'yes'", "disabled": true },
+                { "key": "categoryId", "value": "2", "description": "Filter by destination category ID", "disabled": true },
+                { "key": "minPrice", "value": "5000", "description": "Minimum price filter", "disabled": true },
+                { "key": "maxPrice", "value": "20000", "description": "Maximum price filter", "disabled": true },
+                { "key": "duration", "value": "5", "description": "Trek duration in days", "disabled": true },
+                { "key": "difficulty", "value": "moderate", "description": "Difficulty attribute slug", "disabled": true },
+                { "key": "location", "value": "uttarakhand", "description": "Location slug — uses ltree ancestry query", "disabled": true },
+                { "key": "category", "value": "himalayan-treks", "description": "Attribute category slug", "disabled": true },
+                { "key": "season", "value": "winter", "description": "Season attribute slug", "disabled": true },
+                { "key": "sort", "value": "newest", "description": "Sort order: price_asc | price_desc | duration_asc | newest (default)", "disabled": true }
+              ]
+            },
+            "description": "Paginated list of treks with filtering and sorting. Built with raw SQL for performance.\n\n**Auth:** None\n\n**Query Params:**\n| Param | Type | Description |\n|-------|------|-------------|\n| `page` | number | Page number (default 1) |\n| `limit` | number | Results per page (default 10) |\n| `status` | string | Trek publish status (default 'publish') |\n| `isFeatured` | string | Pass 'yes' for featured only |\n| `categoryId` | number | Filter by destination category ID |\n| `minPrice` / `maxPrice` | number | Price range |\n| `duration` | number | Duration in days |\n| `difficulty` | string | Difficulty attribute slug |\n| `location` | string | Location slug — traverses ltree hierarchy |\n| `category` | string | Attribute category slug |\n| `season` | string | Season attribute slug |\n| `sort` | string | `price_asc`, `price_desc`, `duration_asc`, `newest` |"
+          }
+        },
+        {
+          "name": "Get Featured Treks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/featured?limit=6",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "featured"],
+              "query": [
+                { "key": "limit", "value": "6", "description": "Max results (default: 6)" }
+              ]
+            },
+            "description": "Returns treks with `isFeatured = 'yes'`, ordered by newest. Used for homepage/landing carousels.\n\n**Auth:** None"
+          }
+        },
+        {
+          "name": "Get Treks by Location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/location/{{locationSlug}}?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "location", "{{locationSlug}}"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "Returns all treks within a location and all its sub-locations using ltree `<@` ancestry traversal.\n\n**Auth:** None\n\n**Path Param:** `slug` — location slug (e.g. `uttarakhand`)"
+          }
+        },
+        {
+          "name": "Get My Wishlist (stub)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/me/wishlist",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "me", "wishlist"]
+            },
+            "description": "Placeholder endpoint — not yet implemented. Returns a greeting with the user's name.\n\n**Auth:** Required (session cookie)\n\n> Use `GET /api/v1/wishlist` for the real wishlist functionality."
+          }
+        },
+        {
+          "name": "Get Trek Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/{{trekSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "{{trekSlug}}"]
+            },
+            "description": "Full trek object including location, category, attributes, expedition team, computed min_price, listing count, and leader count.\n\n**Auth:** None\n\n**Path Param:** `slug` — the trek's unique slug"
+          }
+        },
+        {
+          "name": "Get Trek Breadcrumb",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/{{trekSlug}}/breadcrumb",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "{{trekSlug}}", "breadcrumb"]
+            },
+            "description": "Returns the location ancestor hierarchy for a trek (e.g. India → Uttarakhand → Uttarkashi). Uses ltree `@>` ancestor query.\n\n**Auth:** None"
+          }
+        },
+        {
+          "name": "Get Trek Routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/{{trekSlug}}/routes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "{{trekSlug}}", "routes"]
+            },
+            "description": "Returns all route variants for a trek, each with day-by-day itinerary and processed image URLs.\n\n**Auth:** None"
+          }
+        },
+        {
+          "name": "Get Nearby Locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/{{trekSlug}}/nearby-locations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "{{trekSlug}}", "nearby-locations"]
+            },
+            "description": "Returns up to 6 sibling locations at the same ltree depth as the trek's location, scored by name/token similarity.\n\n**Auth:** None"
+          }
+        },
+        {
+          "name": "Get Related Treks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/{{trekSlug}}/related?limit=6",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "{{trekSlug}}", "related"],
+              "query": [
+                { "key": "limit", "value": "6", "description": "Max related treks (default: 6)" }
+              ]
+            },
+            "description": "Treks in the same location subtree, each enriched with up to 3 trek leader names/images (batched, no N+1).\n\n**Auth:** None"
+          }
+        },
+        {
+          "name": "Get Trek Listings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/treks/{{trekSlug}}/listings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "treks", "{{trekSlug}}", "listings"]
+            },
+            "description": "All active listings for a trek. Each listing includes vendor, optional trek leader, and the next available `open` slot (via SQL LATERAL join).\n\n**Auth:** None"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Listings",
+      "description": "Public endpoints for reading listing details and reviews.",
+      "item": [
+        {
+          "name": "Get Listing Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "listings", "{{listingId}}"]
+            },
+            "description": "Full listing detail including vendor, trek leader, parent trek summary, and all upcoming `open` / `sold_out` slots.\n\n**Auth:** None\n\n**Path Param:** `id` — numeric listing ID"
+          }
+        },
+        {
+          "name": "Get Listing Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/reviews?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "listings", "{{listingId}}", "reviews"],
+              "query": [
+                { "key": "page", "value": "1", "description": "Page number (default: 1)" },
+                { "key": "limit", "value": "10", "description": "Reviews per page (default: 10)" }
+              ]
+            },
+            "description": "Paginated reviews for a listing with aggregate rating breakdown (guide expertise, safety, logistics, sustainability).\n\n**Auth:** None\n\n**Path Param:** `id` — numeric listing ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "description": "All booking routes require an active session (cookie-based auth). Scope is always the authenticated user — users can only see and create their own bookings.",
+      "item": [
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_id\": 1,\n  \"slot_id\": 3,\n  \"adult_count\": 2,\n  \"children_count\": 1,\n  \"special_request\": \"Vegetarian meals please\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "Creates a booking and atomically decrements available seats inside a transaction. Uses an optimistic lock (re-reads seat count inside the transaction) to prevent double-booking under concurrent requests.\n\n**Auth:** Required\n\n**Body:**\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `listing_id` | number | ✅ | ID of the trek listing |\n| `slot_id` | number | ✅ | ID of the trek slot |\n| `adult_count` | number | ✅ | Must be ≥ 1 |\n| `children_count` | number | — | Defaults to 0 if omitted |\n| `special_request` | string | — | Free-text request |\n\n**Error Responses:**\n- `400` — missing required fields or not enough seats\n- `404` — listing/slot not found or listing not active\n- `500 SEAT_CONFLICT` — concurrent booking race (retry)"
+          }
+        },
+        {
+          "name": "Get My Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "Returns all bookings for the authenticated user, ordered by newest first. Each booking includes inline listing + vendor + slot summary.\n\n**Auth:** Required"
+          }
+        },
+        {
+          "name": "Get Booking by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings", "{{bookingId}}"]
+            },
+            "description": "Returns a single booking scoped to the authenticated user. Includes the parent trek object (id, title, slug, banner_image) in addition to the listing and slot.\n\n**Auth:** Required\n\n**Path Param:** `id` — numeric booking ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wishlist",
+      "description": "User wishlist for treks and experiences. All routes require authentication and are scoped to the current user.",
+      "item": [
+        {
+          "name": "Get Wishlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/wishlist",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "wishlist"]
+            },
+            "description": "Returns all wishlist items for the authenticated user. Each item is enriched with the full trek or experience details fetched in a single batch query.\n\n**Auth:** Required"
+          }
+        },
+        {
+          "name": "Add to Wishlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"item_type\": \"trek\",\n  \"item_id\": 5,\n  \"item_slug\": \"kedarkantha-winter-trek\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/wishlist",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "wishlist"]
+            },
+            "description": "Adds a trek or experience to the user's wishlist.\n\n**Auth:** Required\n\n**Body:**\n| Field | Type | Description |\n|-------|------|-------------|\n| `item_type` | string | `'trek'` or `'experience'` |\n| `item_id` | number | Numeric ID of the trek/experience |\n| `item_slug` | string | Slug of the trek/experience |\n\n**Error Responses:**\n- `400` — item already in wishlist"
+          }
+        },
+        {
+          "name": "Remove from Wishlist",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/wishlist/{{wishlistItemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "wishlist", "{{wishlistItemId}}"]
+            },
+            "description": "Removes a wishlist item by its wishlist record ID.\n\n**Auth:** Required\n\n**Path Param:** `id` — numeric wishlist item ID\n\n**Error Responses:**\n- `400` — invalid ID\n- `403` — item belongs to another user\n- `404` — item not found"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Locations",
+      "description": "Location hierarchy using PostgreSQL ltree extension.",
+      "item": [
+        {
+          "name": "List Locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/locations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "locations"]
+            },
+            "description": "Returns top-level locations (ltree depth ≤ 2) with trek counts. Trek count includes all published treks in the entire location subtree.\n\n**Auth:** None"
+          }
+        },
+        {
+          "name": "Get Location Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/locations/{{locationSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "locations", "{{locationSlug}}"]
+            },
+            "description": "Full location detail including breadcrumb ancestors, direct children with trek counts, gallery images, general info, and map coordinates.\n\n**Auth:** None\n\n**Path Param:** `slug` — location slug (e.g. `uttarakhand`, `himachal-pradesh`)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "description": "Destination category endpoints.",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "categories"]
+            },
+            "description": "Returns all destination categories with trek counts.\n\n**Auth:** None"
+          }
+        },
+        {
+          "name": "Get Treks by Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories/{{categorySlug}}/treks?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "categories", "{{categorySlug}}", "treks"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "Paginated list of published treks in a given destination category.\n\n**Auth:** None\n\n**Path Param:** `slug` — category slug"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Experiences",
+      "description": "Public endpoints for experiences (activities, day trips, etc.).",
+      "item": [
+        {
+          "name": "List Experiences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/experiences?page=1&limit=10&status=publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "experiences"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "publish" },
+                { "key": "isFeatured", "value": "yes", "disabled": true }
+              ]
+            },
+            "description": "Paginated list of experiences.\n\n**Auth:** None\n\n**Query Params:** `page`, `limit`, `status` (default 'publish'), `isFeatured`"
+          }
+        },
+        {
+          "name": "Get Featured Experiences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/experiences/featured",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "experiences", "featured"]
+            },
+            "description": "Top 6 featured experiences (`is_featured = 'yes'`).\n\n**Auth:** None"
+          }
+        },
+        {
+          "name": "Get Experiences by Location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/experiences/location/{{locationSlug}}?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "experiences", "location", "{{locationSlug}}"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "Experiences within a location and its entire subtree using ltree `<@` query.\n\n**Auth:** None\n\n**Path Param:** `slug` — location slug"
+          }
+        },
+        {
+          "name": "Get Experience Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/experiences/{{experienceSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "experiences", "{{experienceSlug}}"]
+            },
+            "description": "Full experience detail with banner/feature/gallery images (all processed through `buildImageUrl`), location, and attributes grouped by attribute category.\n\n**Auth:** None\n\n**Path Param:** `slug` — experience slug"
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "description": "Authenticated user profile management.",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "user", "me"]
+            },
+            "description": "Returns the authenticated user's profile: `id`, `name`, `email`, `image` (CDN URL), `emailVerified`, `role`, `createdAt`.\n\n**Auth:** Required"
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"image\": \"uploads/users/avatar.jpg\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "user", "me"]
+            },
+            "description": "Partial update of the authenticated user's profile. Only fields provided are updated.\n\n**Auth:** Required\n\n**Body (all optional):**\n| Field | Type | Notes |\n|-------|------|-------|\n| `name` | string | Display name |\n| `image` | string | Storage key or URL. Empty string sets image to null |"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "description": "Review submission and helpfulness voting. Reviews require a verified booking.",
+      "item": [
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendor_id\": 1,\n  \"listing_id\": 1,\n  \"trek_id\": 3,\n  \"rating\": 5,\n  \"trek_leader_id\": 2,\n  \"title\": \"Amazing trek experience!\",\n  \"body\": \"The guides were professional and the route was breathtaking.\",\n  \"guide_expertise\": 5,\n  \"safety_protocols\": 4,\n  \"logistics_gear\": 5,\n  \"sustainability\": 4\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reviews"]
+            },
+            "description": "Submits a review. The user must have a completed booking for the listing. Duplicate reviews are rejected.\n\n**Auth:** Required\n\n**Body:**\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `vendor_id` | number | ✅ | Vendor ID |\n| `listing_id` | number | ✅ | Listing ID |\n| `trek_id` | number | ✅ | Trek ID |\n| `rating` | number | ✅ | Overall rating (1–5) |\n| `trek_leader_id` | number | — | Optional leader reference |\n| `title` | string | — | Review headline |\n| `body` | string | — | Review text |\n| `guide_expertise` | number | — | Sub-rating 1–5 |\n| `safety_protocols` | number | — | Sub-rating 1–5 |\n| `logistics_gear` | number | — | Sub-rating 1–5 |\n| `sustainability` | number | — | Sub-rating 1–5 |\n\n**Error Responses:**\n- `400` — missing required fields or duplicate review\n- `403` — user has no verified booking for this listing\n- `404` — listing not found"
+          }
+        },
+        {
+          "name": "Mark Review Helpful",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"helpful\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews/{{reviewId}}/helpful",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reviews", "{{reviewId}}", "helpful"]
+            },
+            "description": "Vote on a review's helpfulness.\n\n**Auth:** Required\n\n**Path Param:** `id` — numeric review ID\n\n**Body:**\n- `type` (string, required) — vote type, e.g. `'helpful'` or `'not_helpful'`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vendor Dashboard",
+      "description": "All vendor routes require an active session. `vendor_id` is passed in the request body (POST/PATCH) or as a query parameter (GET/DELETE) to identify which vendor the user is acting on behalf of.\n\n> **Business rules enforced:**\n> - Slots cannot be created more than 365 days in the future\n> - `end_date` must be ≥ `start_date`\n> - A vendor may not have more than **1000 open slots** across all their listings\n> - A vendor may not create more than **100 slots per hour** (rate-limited, HTTP 429)\n> - Vendors can only set slot status to `vendor_cancel_requested` — setting `cancelled` directly returns 403\n> - Valid slot statuses: `open`, `sold_out`, `completed`, `cancelled`, `vendor_cancel_requested`",
+      "item": [
+        {
+          "name": "Get Published Treks (Trek Picker)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/treks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "vendor", "treks"]
+            },
+            "description": "Returns all published treks for use in the vendor listing creation form (trek picker dropdown). Includes id, title, slug, bannerImage, and location name.\n\n**Auth:** Required"
+          }
+        },
+        {
+          "name": "Create Listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendor_id\": 1,\n  \"trek_id\": 3,\n  \"title\": \"Kedarkantha 6-Day Premium Package\",\n  \"difficulty\": \"moderate\",\n  \"duration_days\": 6,\n  \"price\": 12000,\n  \"sale_price\": 10500,\n  \"route_name\": \"Classic Route via Juda Ka Talab\",\n  \"meeting_point\": \"Sankri Village Base Camp\",\n  \"distance_km\": \"48\",\n  \"elevation_gain\": \"3100m\",\n  \"ascent_time\": \"4-5 hours\",\n  \"descent_time\": \"3-4 hours\",\n  \"intro_text\": \"Experience the magic of Kedarkantha with our premium guided package.\",\n  \"cancellation_policy\": \"Full refund if cancelled 15 days before start date.\",\n  \"itinerary\": [{\"day\": 1, \"title\": \"Drive to Sankri\", \"description\": \"...\"}],\n  \"inclusions\": [\"Accommodation\", \"All meals\", \"Expert guide\"],\n  \"exclusions\": [\"Travel to Sankri\", \"Personal expenses\"],\n  \"highlights\": [\"Summit at 12,500 ft\", \"Snow-covered trail\"],\n  \"tags\": [\"winter\", \"snow\", \"moderate\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/listings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "vendor", "listings"]
+            },
+            "description": "Creates a new listing in `draft` status. A listing becomes `active` automatically when the first batch of slots is added via `POST /vendor/listings/:id/slots`.\n\n**Auth:** Required\n\n**Required fields:** `vendor_id`, `trek_id`\n\n**Response:** `{ success: true, data: { id: \"<listingId>\" } }`"
+          }
+        },
+        {
+          "name": "Update Listing",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendor_id\": 1,\n  \"title\": \"Updated Listing Title\",\n  \"price\": 11000,\n  \"sale_price\": 9500,\n  \"intro_text\": \"Updated intro text.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/listings/{{listingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "vendor", "listings", "{{listingId}}"]
+            },
+            "description": "Partial update of a listing. Only provided fields are changed. The vendor must own the listing.\n\n**Auth:** Required\n\n**Required in body:** `vendor_id`\n\n**Error Responses:**\n- `403` — listing belongs to a different vendor\n- `404` — listing not found"
+          }
+        },
+        {
+          "name": "List Vendor Listings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/listings?vendor_id={{vendorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "vendor", "listings"],
+              "query": [
+                { "key": "vendor_id", "value": "{{vendorId}}", "description": "Numeric vendor ID" }
+              ]
+            },
+            "description": "Returns all listings belonging to the vendor with their slot counts and trek summary.\n\n**Auth:** Required\n\n**Query Param:** `vendor_id` (required)"
+          }
+        },
+        {
+          "name": "Get Listing Detail (Vendor View)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/listings/{{listingId}}?vendor_id={{vendorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "vendor", "listings", "{{listingId}}"],
+              "query": [
+                { "key": "vendor_id", "value": "{{vendorId}}" }
+              ]
+            },
+            "description": "Full listing detail for vendor dashboard — includes ALL slots (no date/status filter, so past and draft slots are visible too), vendor info, trek leader, and trek images.\n\n**Auth:** Required\n\n**Error Responses:**\n- `403` — listing belongs to a different vendor\n- `404` — not found"
+          }
+        },
+        {
+          "name": "Add Slots to Listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendor_id\": 1,\n  \"cancellation_policy\": \"Full refund if cancelled 15 days before.\",\n  \"slots\": [\n    {\n      \"start_date\": \"2026-12-15\",\n      \"end_date\": \"2026-12-21\",\n      \"total_seats\": 15\n    },\n    {\n      \"start_date\": \"2027-01-05\",\n      \"end_date\": \"2027-01-11\",\n      \"total_seats\": 12\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/listings/{{listingId}}/slots",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "vendor", "listings", "{{listingId}}", "slots"]
+            },
+            "description": "Creates one or more slots for a listing. If the listing is in `draft` status it is automatically promoted to `active`.\n\n**Auth:** Required\n\n**Business Rules:**\n- `end_date` must be ≥ `start_date` — returns `400` otherwise\n- `start_date` must be within 365 days of today — returns `400` otherwise\n- Vendor must not already have ≥ 1000 `open` slots across all listings — returns `400`\n- Vendor must not have created ≥ 100 slots in the past hour — returns `429`\n\n**Error Responses:**\n- `400` — validation failure or open-slot cap exceeded\n- `403` — listing belongs to another vendor\n- `404` — listing not found\n- `429` — rate limit exceeded (100 slots/hour)"
+          }
+        },
+        {
+          "name": "Update Slot",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendor_id\": 1,\n  \"total_seats\": 20,\n  \"status\": \"vendor_cancel_requested\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/slots/{{slotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "vendor", "slots", "{{slotId}}"]
+            },
+            "description": "Updates a slot's `total_seats` and/or `status`. When `total_seats` changes, `available_seats` is recomputed automatically.\n\n**Auth:** Required\n\n**Status Enum:** `open` · `sold_out` · `completed` · `cancelled` · `vendor_cancel_requested`\n\n**Business Rules:**\n- Vendors **cannot** set status to `cancelled` directly — use `vendor_cancel_requested` instead (returns `403`)\n- Unknown status values return `400`\n\n**Error Responses:**\n- `400` — invalid status value\n- `403` — slot belongs to another vendor, or attempted direct cancellation\n- `404` — slot not found"
+          }
+        },
+        {
+          "name": "Delete Slot",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/slots/{{slotId}}?vendor_id={{vendorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "vendor", "slots", "{{slotId}}"],
+              "query": [
+                { "key": "vendor_id", "value": "{{vendorId}}", "description": "Numeric vendor ID (passed as query param since DELETE has no standard body)" }
+              ]
+            },
+            "description": "Permanently deletes a slot. Only allowed if the slot has zero bookings (`booked_seats = 0`).\n\n**Auth:** Required\n\n**Error Responses:**\n- `400` — slot has existing bookings and cannot be deleted\n- `403` — slot belongs to another vendor\n- `404` — slot not found"
+          }
+        }
+      ]
+    }
+  ]
+}
